@@ -1,5 +1,7 @@
-# AK-CHAT-SERVER
-ak-chat-server is a web-based text chat room where all followers and friends of AK01REDWAN can participate in engaging conversations. It functions as a group chat room that welcomes anyone who accepts and adheres to its policies. Moreover, it serves as the platform where I share my latest news and updates.
+# [AK-CHAT-MOBILE-APP](https://github.com/ak01redwan/ak-chat-mobile-app)
+ak-chat-mobile-app is mobile app built on react native to be the mobile version of [ak-chat-server](https://github.com/ak01redwan/ak-chat-server), AK-CHAT-SERVER is a web-based text chat room where all followers and friends of AK01REDWAN can participate in engaging conversations. It functions as a group chat room that welcomes anyone who accepts and adheres to its policies. Moreover, it serves as the platform where I share my latest news and updates.
+
+# NOTE!!!: if you want the mobile code you can [click here: (AK-CHAT-MOBILE-APP)](https://github.com/ak01redwan/ak-chat-mobile-app)
 
 ## Developed by AK01REDWAN
 (https:ak01redwan.000webhostapp.com).
