@@ -1,0 +1,10 @@
+# formatted by tooling only
+node_modules/
+build/
+coverage/
+package-lock.json
+public/
+.git/
+.firebase/
+# no parser in Prettier core
+firestore.rules

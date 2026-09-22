@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /messages/{messageId} {
+      // Only authenticated users may read the public chat log.
+      allow read: if request.auth != null;
+
+      // Authenticated users may post messages, but each document must match a
+      // strict schema: non-empty text (max 1000 chars), the author's own uid,
+      // and an https photoURL. The server timestamp must equal the commit time.
+      function validPhotoURL(url) {
+        return url is string
+          && url.size() <= 512
+          && (url.matches('https://.*') || url.matches('http://.*'));
+      }
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['text', 'uid', 'displayName', 'photoURL', 'createdAt'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.displayName is string || request.resource.data.displayName == null)
+        && (request.resource.data.displayName == null || request.resource.data.displayName.size() <= 100)
+        && (request.resource.data.photoURL is string || request.resource.data.photoURL == null)
+        && (request.resource.data.photoURL == null || validPhotoURL(request.resource.data.photoURL))
+        && request.resource.data.createdAt == request.time;
+
+      // Only the original author may edit or delete their own message.
+      allow update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+  }
+}
