@@ -10,10 +10,25 @@ export default function CodeOfConductModal({ onAccept }: CodeOfConductModalProps
 
   useEffect(() => {
     acceptButtonRef.current?.focus();
+
+    // Escape must not dismiss the guidelines: acceptance is required to chat.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+
+      // Trap focus inside the dialog (there is exactly one focusable control).
+      const focusable = acceptButtonRef.current;
+      if (focusable && !event.shiftKey) {
+        event.preventDefault();
+        focusable.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (
-    <div className="modal__overlay">
+    <div className="modal__overlay" role="presentation">
       <div
         className="modal"
         role="dialog"

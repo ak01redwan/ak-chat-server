@@ -1,121 +1,137 @@
-# AK-CHAT Development Report — v1.0.0
+# تقرير تطوير AK-CHAT — v1.1.0
 
-**Date:** 2026-09-22
-**Branch:** `main`
-**Status:** Build ready; deploy requires one-time secrets + rules deploy (see below)
-
----
-
-## Executive summary
-
-AK-CHAT was rebuilt from a broken, unstyled single-file proof of concept into a professional,
-typed, tested, and CI-gated React application. The live site failure was root-caused and fixed,
-Firestore is now secured by rules, the UI was redesigned around a modern dark theme, real-time
-messaging gained pagination, and a 43-test suite protects the whole app. Deploying is now a
-routine `push to main` — pending two one-time setup steps owned by the repo owner.
+**التاريخ:** 2026-09-30
+**الفرع:** `main`
+**الحالة:** جاهز للنشر بعد خطوة إعداد لمرة واحدة (انظر [الإجراءات المطلوبة](#الإجراءات-المطلوبة-من-المالك))
 
 ---
 
-## Root cause of the broken live site
+## الملخص التنفيذي
 
-The production site died because commit `3bb5a8b` replaced the Firebase config object with
-`initializeApp({ /* config */ })` (the real value previously lived in git history) and provided
-**no replacement mechanism**. The build still produced a bundle — but with no config — so the app
-crashed at startup.
+رُوجع المشروع بالكامل، و**عُثر على سبب انهيار الموقع الفعلي**: الملف `src/index.tsx` كان مُودَعًا فارغًا
+(0 بايت). نتيجة لذلك كان أمر البناء ينجح رسميًا بينما يُخرج حزمة JavaScript فارغة، فيرى المستخدم
+صفحة بيضاء. تم استعادة الملف، **وأُضيف فحص آلي (`verify:build`) يمنع تكرار هذه المشكلة نهائيًا**.
 
-**Fix:** all Firebase configuration now flows through `REACT_APP_FIREBASE_*` environment variables.
-
-- `.env` (git-ignored) holds the recovered real values.
-- `.env.example` (committed) documents every variable with placeholders.
-- CI injects the values from GitHub Actions secrets at build time.
+إلى جانب إصلاح العطل، أُضيفت ميزات حقيقية للدردشة (تفاعلات، ردود، تعديل وحذف، بحث، مؤشرات حضور، سمات
+فاتحة/داكنة)، وأُعيد بناء نظام التصميم، ووُسِّعت تغطية الاختبارات من 43 إلى **97 اختبارًا**، وكُتبت
+التوثيقات من جديد.
 
 ---
 
-## What was delivered
+## 1. العطل الحرج: لماذا كان الموقع أبيض
 
-### Functional / UX
-- Google sign-in with friendly, error-mapped feedback; sign-out.
-- Live message stream (25 latest), oldest-first ordering, optimistic pending-message rendering.
-- **Pagination:** "Load earlier messages" pages through full history without losing the live tail.
-- Accessible **code-of-conduct dialog** replaces the original thread-blocking `alert()`.
-- Send gating (empty/whitespace disabled), live character limit, trimmed writes.
-- Safe avatar handling: https-only URLs + on-error initials fallback.
-- Modern dark theme, responsive down to small phones, `prefers-reduced-motion` honored.
+| البند                | التفصيل                                                                  |
+| -------------------- | ------------------------------------------------------------------------ |
+| السبب الجذري         | `src/index.tsx` فارغ تمامًا في المستودع                                  |
+| الأثر                | `build/static/js/main.31d6cfe0.js` بحجم 0 بايت — صفحة بيضاء              |
+| لماذا لم caughtها CI | البناء ينجح رسميًا؛ لم يكن هناك أي فحص لمحتوى الحزمة                     |
+| الإصلاح              | استعادة نقطة تشغيل React (`createRoot` + `StrictMode` + `initAnalytics`) |
+| الوقاية              | `scripts/verify-build.js` يعمل في CI بعد البناء مباشرة                   |
 
-### Engineering
-- Full migration from JavaScript to **strict TypeScript** (23 files).
-- Clean module boundaries: `types/`, `utils/`, `firebase/`, `hooks/`, `components/`.
-- Pure validation logic (`validation.ts`) shared by UI and mocked in tests.
-- Data hook `useMessages` owns subscription + pagination; components are thin presenters.
-
-### Security (`firestore.rules`)
-- Reads: authenticated users only.
-- Creates: exact schema (`hasOnly`), text 1–1000 chars, `uid == request.auth.uid`,
-  displayName ≤100 chars, https-only photoURL ≤512 chars, `createdAt == request.time`
-  (server-timestamp enforced — clients cannot forge ordering).
-- Update/Delete: author-only. Composite index file included. Hosting gets security headers.
-
-### Quality gates (all green)
-| Gate | Result |
-| --- | --- |
-| `npm run lint` (0 warnings allowed) | 0 problems |
-| `npm run typecheck` (`tsc --noEmit`) | 0 errors |
-| `npm run test:ci` | **43/43 tests pass** (6 suites, + coverage) |
-| `npm run build` | production build succeeds |
-| `npm run format:check` | clean |
-
-### CI/CD
-- Both workflows gate production (merge) and preview (PR) deploys on
-  lint → typecheck → tests → build, run on Node 20 with npm cache, and inject Firebase config
-  from secrets. PR + issue templates added.
-
-### Documentation
-`README.md` • `docs/ARCHITECTURE.md` • `docs/DEPLOYMENT.md` • `docs/SECURITY.md` •
-`docs/TESTING.md` • `CHANGELOG.md` • `LICENSE` (MIT)
+هذا يذكّر بقاعدة عامة: **«البناء نجح» لا تعني أن المخرجات سليمة.**
 
 ---
 
-## Technical decisions worth knowing
+## 2. الميزات المُضافة
 
-| Decision | Why |
-| --- | --- |
-| Stay on Create React App 5 | Vite migration was out of scope; CRA is stable for this app. |
-| `typescript@4.9.5`, `@types/node@18` | Satisfy react-scripts 5 peer ranges; newer TS rejects the CRA types. |
-| `module`/`moduleResolution: node16` | Required for Firestore 10's `exports`-map types to resolve. |
-| `react-firebase-hooks@5.1.1` + ambient `.d.ts` | Package ships no typings; local shim keeps types strict. |
-| Env-rules via `serverTimestamp` + `createdAt == request.time` | Ties ordering truth to the server; the client can't spoof clocks. |
-| `@testing-library/user-event@14` | v13 predates `userEvent.setup()` used by our async interaction tests. |
+### تجربة المستخدم
+
+- **التفاعلات بالإيموجي** — خريطة `reactions: { emoji: uid[] }`؛ أي مستخدم مصدَّق يستطيع التفاعل،
+  ولا يتسبب التفاعل المتزامن في الكتابة فوق بعضه.
+- **الردود المقتبسة** — تُحفظ معاينة `replyTo: { id, text, displayName }` داخل الرسالة الجديدة
+  وتُعرض كاقتباس فوق الفقاعة.
+- **تعديل الرسالة** — صاحب الرسالة فقط، داخل فقاعة الرسالة نفسها؛ `Escape` للإلغاء و`Enter` للحفظ.
+- **الحذف** — نافذة تأكيد بإمكانية وصول (`role="alertdialog"`، حبس التركيز، إغلاق بـ `Escape`).
+- **البحث** — تصفية الرسائل المحمّلة حسب النص واسم المُرسِل.
+- **مؤشرات الحضور** — `presence/{uid}` مع نبضة كل 45 ثانية ونافذة حداثة 120 ثانية، ويظهر العدد في
+  الترويسة.
+- **السمة** — فاتحة/داكنة/تلقائية حسب النظام، محفوظة في `localStorage` تحت `ak-chat:theme`.
+- **فواصل الأيام** — «اليوم» / «أمس» / تاريخ مطلق.
+- **اختيار إيموجي سريع**، **حالة تحميل هيكلية** (`SkeletonChat`)، **شريط انقطاع الاتصال**،
+  ورابط تخطٍّ لمستخدمي لوحة المفاتيح.
+
+### الهندسة
+
+- `ThemeContext` و`usePresence` وطبقة بيانات رسائل موسّعة.
+- تصميم قائم على Design Tokens مع لوحتي ألوان كاملتين واستجابة حتى الشاشات الصغيرة.
+- `verify:build` مضاف إلى workflow النشر و workflow الـ PR.
+
+### الأمان (`firestore.rules`)
+
+- **الإنشاء**: `hasOnly` يغطي `text, uid, displayName, photoURL, createdAt, replyTo, reactions`،
+  والنص 1–1000 حرف، و`uid == request.auth.uid`، و`createdAt == request.time`.
+- **التعديل — مساران منفصلان**: صاحب الرسالة يغيّر **النص فقط**، وأي مستخدم مصدَّق يغيّر
+  **خريطة التفاعلات فقط**؛ كل الحقول الأخرى يجب أن تبقى مطابقة حرفيًا.
+- **الحذف**: صاحب الرسالة فقط.
+- **الحضور**: قابلة للقراءة للجميع المصدّقين، والكتابة لنفس الـ uid فقط وبطابع زمني من الخادم.
 
 ---
 
-## Verification evidence
+## 3. بوابات الجودة — جميعها خضراء
+
+| البوابة                              | النتيجة                    |
+| ------------------------------------ | -------------------------- |
+| `npm run lint` (بدون تحذيرات)        | 0 مشاكل                    |
+| `npm run typecheck` (`tsc --noEmit`) | 0 أخطاء                    |
+| `npm run test:ci`                    | **97/97 ناجح** (8 مجموعات) |
+| `npm run build`                      | ناجح — `165.73 kB` مضغوطًا |
+| `npm run verify:build`               | ناجح — الحزمة 538.3 KB     |
+| `npm run format`                     | مطبَّق                     |
 
 ```
-$ npm run lint        → 0 problems
 $ npm run typecheck   → exited 0
-$ npm run test:ci     → Tests: 43 passed, 43 total
+$ npm run test:ci     → Tests: 97 passed, 97 total
 $ npm run build       → "The build folder is ready to be deployed."
+$ npm run verify:build→ ✔ Build output verified
 ```
 
 ---
 
-## Action items for the owner (one-time, not blocking the commit)
+## 4. قرارات تقنية جديرة بالمعرفة
 
-1. **Add 8 GitHub Actions secrets** (see `docs/DEPLOYMENT.md`): the 7 `REACT_APP_FIREBASE_*`
-   values and `FIREBASE_SERVICE_ACCOUNT_AK_CHAT_SERVER` (the service-account token the
-   `firebase-hosting-*` workflows already reference).
-2. **Deploy Firestore rules once:**
+| القرار                              | السبب                                                                      |
+| ----------------------------------- | -------------------------------------------------------------------------- |
+| البقاء على Create React App 5       | التحويل إلى Vite مشروع منفصل؛ البناء الحالي سريع و CI أخضر                 |
+| التفاعلات كخريطة emoji → قائمة uids | كتابة واحدة لكل نقرة، بلا سباق read-modify-write                           |
+| الردود كاقتباس مُطبَّع              | يظهر فورًا دون قراءة ثانية؛ هو معاينة لا مرجع حيّ                          |
+| الحضور عبر نبضة زمنية               | Firestore لا يدعم `onDisconnect`؛ نافذة الحداثة تُشفي ذاتيًا بعد أي انهيار |
+| `verify:build` في CI                | البناء قد "ينجح" بمخرجات فارغة — هذه كانت المشكلة الفعلية                  |
+| تأجيل CSP                           | قد يكسر تسجيل الدخول؛ مُوثَّق كخطوة قادمة في `docs/ROADMAP.md`             |
+
+---
+
+## 5. الإجراءات المطلوبة من المالك (لمرة واحدة)
+
+1. **نشر قواعد Firestore** — لا يقوم نشر Hosting بنشر القواعد، وبدونها ستُرفض الردود والتفاعلات
+   والحضور:
    ```bash
    npm i -g firebase-tools
    firebase login
-   firebase deploy --only firestore
+   firebase deploy --only firestore:rules
    ```
-   Hosting deploys do not ship the rules; until this runs, the chat renders read-only.
-3. **Review and push `main`** — the merge workflow deploys to https://ak-chat-server.web.app/
-   automatically, this time with working config.
+2. **التأكد من أسرار GitHub Actions** — القيم السبع `REACT_APP_FIREBASE_*` إضافةً إلى
+   `FIREBASE_SERVICE_ACCOUNT_AK_CHAT_SERVER` (التفاصيل في `docs/DEPLOYMENT.md`).
+3. **دفع هذا الالتزام إلى `main`** — عندها ينشر الـ workflow تلقائيًا على
+   https://ak-chat-server.web.app/
 
-## Optional follow-ups (tracked in CHANGELOG "Unreleased")
+### فحص ما بعد النشر
 
-- Moderator tooling to remove offending messages.
-- Message search / archive browser.
-- Arabic/English localization.
+سجّل الدخول، جرّب الإرسال والتعديل والحذف والتفاعل والرد، تأكد من ظهور عدّاد المتصلين، ثم بدّل
+السمة وأعد تحميل الصفحة للتأكد من حفظها.
+
+---
+
+## 6. القيود المعروفة
+
+- **البحث يغطي الرسائل المحمّلة فقط**، وليس كامل الأرشيف (يحتاج فهرس بحث).
+- **لا يوجد مؤشر كتابة** (مؤجل إلى v1.2.0).
+- **لا يوجد تصفية أو حذف من طرف مشرف**؛ القواعد تسمح لصاحب الرسالة فقط.
+- **حدود معدل الكتابة غير مفروضة** — يمكن لعميل الكتابة بسرعة؛ فرضها يحتاج Cloud Function.
+- **لم تُختبر القواعد على emulator** في هذه الجولة؛ مُراجَعة ساكنة مقابل مخطط الكتابة في العميل.
+
+---
+
+## 7. التوثيق
+
+`README.md` • `docs/ARCHITECTURE.md` • `docs/DEPLOYMENT.md` • `docs/SECURITY.md` •
+`docs/TESTING.md` • `docs/ROADMAP.md` • `CHANGELOG.md` • `LICENSE` (MIT)

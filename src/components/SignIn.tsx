@@ -35,8 +35,22 @@ function friendlyError(error: unknown): SignInError | null {
     };
   }
 
+  if (code === 'auth/network-request-failed') {
+    return { message: 'Network problem. Check your connection and try again.' };
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return { message: 'Too many attempts. Wait a moment and try again.' };
+  }
+
   return { message: error.message };
 }
+
+const FEATURES = [
+  { title: 'Real-time', text: 'Messages appear instantly for everyone in the room.' },
+  { title: 'Reactions & replies', text: 'React with emoji and quote messages you care about.' },
+  { title: 'Your data, your rules', text: 'Edit or delete anything you post, any time.' },
+];
 
 export default function SignIn() {
   const [signingIn, setSigningIn] = useState(false);
@@ -82,6 +96,15 @@ export default function SignIn() {
             {error.message}
           </p>
         )}
+
+        <ul className="signin__features">
+          {FEATURES.map((feature) => (
+            <li className="signin__feature" key={feature.title}>
+              <strong>{feature.title}</strong>
+              <span>{feature.text}</span>
+            </li>
+          ))}
+        </ul>
 
         <div className="signin__rules">
           <h3 className="signin__rules-title">Community guidelines</h3>

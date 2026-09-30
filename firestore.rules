@@ -1,34 +1,145 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /messages/{messageId} {
-      // Only authenticated users may read the public chat log.
-      allow read: if request.auth != null;
+    // ----------------------------------------------------------------------
+    //  Shared helpers
+    // ----------------------------------------------------------------------
 
-      // Authenticated users may post messages, but each document must match a
-      // strict schema: non-empty text (max 1000 chars), the author's own uid,
-      // and an https photoURL. The server timestamp must equal the commit time.
-      function validPhotoURL(url) {
-        return url is string
-          && url.size() <= 512
-          && (url.matches('https://.*') || url.matches('http://.*'));
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validPhotoURL(url) {
+      return url is string
+        && url.size() <= 512
+        && (url.matches('https://.*') || url.matches('http://.*'));
+    }
+
+    // reactions: map of emoji -> list of uids.
+    // Caps: at most 8 distinct emojis, at most 50 reactors per emoji,
+    // so nobody can balloon a document with a huge payload.
+    function validReactions(reactions) {
+      return reactions is map
+        && reactions.size() <= 8
+        && reactions.keys().all(emoji,
+          emoji is string
+          && emoji.size() > 0
+          && emoji.size() <= 8
+        )
+        && reactions.keys().all(emoji,
+          reactions[emoji] is list
+          && reactions[emoji].size() <= 50
+          && reactions[emoji].all(uid, uid is string && uid.size() > 0 && uid.size() <= 128)
+        );
+    }
+
+    // replyTo: an immutable quote preview. Absent (null) is allowed.
+    function validReplyTo(replyTo) {
+      return replyTo == null || (
+        replyTo is map
+        && replyTo.keys().hasOnly(['id', 'text', 'displayName'])
+        && replyTo.id is string
+        && replyTo.id.size() > 0
+        && replyTo.id.size() <= 200
+        && replyTo.text is string
+        && replyTo.text.size() > 0
+        && replyTo.text.size() <= 1000
+        && (replyTo.displayName is string || replyTo.displayName == null)
+        && (replyTo.displayName == null || replyTo.displayName.size() <= 100)
+      );
+    }
+
+    // Core message shape shared by create and update. The authorship and the
+    // server-controlled timestamp are checked separately, because their
+    // correct value differs between the two operations.
+    function validMessageBody(message) {
+      return message.keys().hasOnly([
+          'text', 'uid', 'displayName', 'photoURL', 'createdAt', 'replyTo', 'reactions'
+        ])
+        && message.text is string
+        && message.text.size() > 0
+        && message.text.size() <= 1000
+        && message.uid is string
+        && (message.displayName is string || message.displayName == null)
+        && (message.displayName == null || message.displayName.size() <= 100)
+        && (message.photoURL is string || message.photoURL == null)
+        && (message.photoURL == null || validPhotoURL(message.photoURL))
+        && message.createdAt is timestamp
+        && validReplyTo(message.replyTo)
+        && validReactions(message.reactions);
+    }
+
+    // ----------------------------------------------------------------------
+    //  messages
+    // ----------------------------------------------------------------------
+    match /messages/{messageId} {
+      function isAuthor() {
+        return signedIn() && resource.data.uid == request.auth.uid;
       }
 
-      allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['text', 'uid', 'displayName', 'photoURL', 'createdAt'])
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 1000
+      // Only authenticated users may read the public chat log.
+      allow read: if signedIn();
+
+      // Create: strict schema, you can only post as yourself, the timestamp
+      // must come from the server context (prevents client-controlled clocks).
+      allow create: if signedIn()
+        && validMessageBody(request.resource.data)
         && request.resource.data.uid == request.auth.uid
-        && (request.resource.data.displayName is string || request.resource.data.displayName == null)
-        && (request.resource.data.displayName == null || request.resource.data.displayName.size() <= 100)
-        && (request.resource.data.photoURL is string || request.resource.data.photoURL == null)
-        && (request.resource.data.photoURL == null || validPhotoURL(request.resource.data.photoURL))
         && request.resource.data.createdAt == request.time;
 
-      // Only the original author may edit or delete their own message.
-      allow update, delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+      // Update, path A: the author edits the text of their own message.
+      // Every immutable field (uid, createdAt, replyTo, reactions) must be
+      // byte-identical to what is already stored.
+      function canEditOwnMessage() {
+        return signedIn()
+          && validMessageBody(request.resource.data)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.replyTo == resource.data.replyTo
+          && request.resource.data.reactions == resource.data.reactions
+          && isAuthor();
+      }
+
+      // Update, path B: any signed-in user reacts to any message. Only the
+      // reactions map may differ; the message content must not change.
+      function canOnlyChangeReactions() {
+        return signedIn()
+          && validMessageBody(request.resource.data)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.text == resource.data.text
+          && request.resource.data.displayName == resource.data.displayName
+          && request.resource.data.photoURL == resource.data.photoURL
+          && request.resource.data.replyTo == resource.data.replyTo;
+      }
+
+      allow update: if canEditOwnMessage() || canOnlyChangeReactions();
+
+      // Delete: only the original author.
+      allow delete: if isAuthor();
+    }
+
+    // ----------------------------------------------------------------------
+    //  presence  (online roster)
+    // ----------------------------------------------------------------------
+    match /presence/{uid} {
+      // Any signed-in user may read the roster to show who is online.
+      allow read: if signedIn();
+
+      // You may only write your own presence document, with your own uid, and
+      // the timestamp must be server-generated.
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'online', 'lastSeen'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.photoURL is string
+        && request.resource.data.photoURL.size() <= 512
+        && request.resource.data.online is bool
+        && request.resource.data.lastSeen == request.time;
+
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
   }
 }

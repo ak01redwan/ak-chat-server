@@ -2,28 +2,105 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0b1120" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>AK-CHAT — Real-time Community Chat for AK01REDWAN Followers</title>
     <meta
       name="description"
-      content="AK-CHAT is a real-time community group chat for AK01REDWAN followers and friends — welcome to chat and share updates."
+      content="AK-CHAT is a free, real-time community group chat for AK01REDWAN followers and friends. Sign in with Google, chat live, react, reply and share updates."
     />
+    <meta
+      name="keywords"
+      content="AK-CHAT, AK01REDWAN, community chat, live chat, realtime chat, group chat, firebase chat"
+    />
+    <meta name="author" content="AK01REDWAN" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://ak-chat-server.web.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="AK-CHAT" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://ak-chat-server.web.app/" />
     <meta property="og:title" content="AK-CHAT — Real-time Community Chat" />
     <meta
       property="og:description"
-      content="A real-time group chat where AK01REDWAN followers and friends can talk and share updates."
+      content="A real-time group chat where AK01REDWAN followers and friends can talk, react, reply and share updates."
     />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ak-chat-server.web.app/" />
-    <meta property="og:image" content="%PUBLIC_URL%/logo512.png" />
-    <meta name="twitter:card" content="summary" />
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <meta property="og:image" content="https://ak-chat-server.web.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="AK-CHAT — real-time community chat for AK01REDWAN followers"
+    />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AK-CHAT — Real-time Community Chat" />
+    <meta
+      name="twitter:description"
+      content="Sign in with Google and join the AK01REDWAN community chat — real-time messages, reactions and replies."
+    />
+    <meta name="twitter:image" content="https://ak-chat-server.web.app/og-image.png" />
+    <meta name="twitter:site" content="@ak01redwan" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "AK-CHAT",
+        "url": "https://ak-chat-server.web.app/",
+        "applicationCategory": "SocialNetworkingApplication",
+        "operatingSystem": "Any (web browser)",
+        "description": "Real-time community group chat for AK01REDWAN followers and friends.",
+        "inLanguage": "en",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": {
+          "@type": "Person",
+          "name": "AK01REDWAN",
+          "url": "https://ak01redwan.is-a.dev/"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "AK01REDWAN",
+          "url": "https://ak01redwan.is-a.dev/"
+        }
+      }
+    </script>
+
+    <!-- Icons / PWA -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="%PUBLIC_URL%/logo192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <title>AK-CHAT — Real-time Community Chat</title>
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <meta name="theme-color" content="#0b1120" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AK-CHAT" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Typography + performance preconnects -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap"
+    />
   </head>
   <body>
-    <noscript>AK-CHAT requires JavaScript to run. Please enable it in your browser.</noscript>
+    <noscript>
+      <div style="padding: 24px; font-family: sans-serif; text-align: center">
+        <h1>AK-CHAT needs JavaScript</h1>
+        <p>Please enable JavaScript in your browser to use the real-time chat.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

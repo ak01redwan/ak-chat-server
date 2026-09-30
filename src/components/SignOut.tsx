@@ -14,7 +14,6 @@ export default function SignOut() {
       await signOut(getFirebaseAuth());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign out failed.');
-    } finally {
       setSigningOut(false);
     }
   }

@@ -2,6 +2,58 @@
 
 All notable changes to AK-CHAT are documented here. This project follows [Keep a Changelog](https://keepachangelog.com/) and is versioned with [SemVer](https://semver.org/).
 
+## [1.1.0] - 2026-09-30
+
+### Added
+
+- **Emoji reactions** — one tap to toggle a reaction on any message; stored as a
+  `reactions: { emoji: uid[] }` map so concurrent reactors never overwrite each other.
+- **Quoted replies** — replying stores a denormalized `replyTo: { id, text, displayName }` preview
+  on the new message, rendered as a quote above the bubble.
+- **Inline editing** — the author can edit their own message text; `Escape` cancels, `Enter` saves.
+- **Message deletion** — behind an accessible `ConfirmationModal` (`role="alertdialog"`, focus
+  trapped, closes on `Escape`/overlay click).
+- **Message search** — filter the loaded history by text and author from the toolbar.
+- **Online presence** — a `presence/{uid}` roster with a 45 s heartbeat and a 120 s freshness
+  window, surfaced as an online count in the header. Firestore has no `onDisconnect`, so liveness is
+  derived from a server timestamp, which also self-heals after a crash.
+- **Light / dark / system theme** — `ThemeContext` with `data-theme` on `<html>`, persisted to
+  `localStorage` under `ak-chat:theme`, defaulting to the OS `prefers-color-scheme`.
+- **Day separators** — messages are grouped under "Today" / "Yesterday" / absolute dates.
+- **Quick emoji picker** — append common emoji to the draft without sending.
+- **Skeletal loading state** — `SkeletonChat` shimmer placeholders instead of a bare spinner.
+- **Offline banner** — reacts to `navigator.onLine` and tells the user the connection dropped.
+- **Build smoke check** — `scripts/verify-build.js` (`npm run verify:build`) fails when
+  `index.html`, the JS bundle, the CSS bundle, or the OG image are missing or empty; wired into both
+  CI workflows so an empty bundle can never reach production again.
+- **SEO / PWA polish** — Open Graph + Twitter cards, JSON-LD `WebApplication` schema, canonical
+  link, `robots.txt`, `sitemap.xml`, and a 1200×630 `og-image.png`.
+- **Docs** — `docs/ROADMAP.md`, and refreshed `README.md` / architecture / security / testing /
+  deployment guides.
+- **Test suite grew 43 → 97 tests** (6 → 8 suites), including theme and confirmation-modal suites.
+
+### Changed
+
+- `firestore.rules` rewritten for the new document shape: `hasOnly` now covers
+  `text, uid, displayName, photoURL, createdAt, replyTo, reactions`; update is split into two
+  explicit paths — the author may change only `text`, any signed-in user may change only
+  `reactions` — and a new `presence/{uid}` match allows only self-writes with a server timestamp.
+- `src/firebase/messages.ts` gained `editMessage`, `deleteMessage`, and `setMessageReactions`.
+- `src/index.css` and `src/App.css` rebuilt around design tokens with a full light and dark palette,
+  visible focus states, and responsive layouts down to small phones.
+- Hosting headers extended with `Strict-Transport-Security` and `Permissions-Policy`.
+- CI now runs `verify:build` between `build` and deploy.
+- `test:ci` uses a 20 s per-test timeout to remove flakiness on slow Windows CI runners.
+
+### Fixed
+
+- **`src/index.tsx` was committed empty (0 bytes)** — this was the live site's actual outage. CRA
+  reported a successful build while emitting an empty `main.*.js`, so users saw a blank page.
+  Restored, and `verify:build` now fails the build if it ever regresses.
+- Test-environment gaps that made the suite unreliable: `window.matchMedia` and
+  `navigator.clipboard` were missing in jsdom, and CRA's `resetMocks: true` wiped module-level mock
+  implementations between tests. All three are documented in `docs/TESTING.md`.
+
 ## [1.0.0] - 2026-09-22
 
 ### Added
@@ -36,6 +88,9 @@ All notable changes to AK-CHAT are documented here. This project follows [Keep a
 
 ### Planned
 
+- Typing indicators.
 - Moderator tooling for removing offending messages (rules already permit author-only deletes).
-- Message search/history archive browser.
-- Localized (Arabic/English) UI strings.
+- Arabic/English localization of UI strings.
+- Message attachments / image uploads (needs a storage quota and abuse controls first).
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full plan.

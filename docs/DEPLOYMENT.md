@@ -25,10 +25,14 @@ Fill `.env` with the Web App config from the console. `.env` is git-ignored — 
 Hosting deploys **do not** deploy security rules. Run once, and again whenever `firestore.rules` changes:
 
 ```bash
-firebase deploy --only firestore
+firebase deploy --only firestore:rules
 ```
 
 Deploying the app before rules are live means message writes will be rejected (the chat renders read-only).
+
+> The rules now also cover the `replyTo` and `reactions` fields and the whole `presence`
+> collection. If you skip this step after pulling, replies/reactions/presence will fail with
+> `PERMISSION_DENIED` even though plain messages still work.
 
 ## One-time: GitHub Actions secrets
 
@@ -59,7 +63,11 @@ The last secret is the deployment credential used by `FirebaseExtended/action-ho
 4. `npm run typecheck`
 5. `npm run test:ci`
 6. `npm run build` (with `REACT_APP_FIREBASE_*` from secrets)
-7. `FirebaseExtended/action-hosting-deploy@v0` → live channel
+7. `npm run verify:build` — **guards against deploying an empty bundle.** A CRA build can
+   "succeed" while emitting a 0-byte `main.*.js` (exactly the outage this repo suffered, where
+   `src/index.tsx` was committed empty). This step fails the deploy if `index.html`, the JS bundle,
+   the CSS bundle, or the OG image are missing or suspiciously small.
+8. `FirebaseExtended/action-hosting-deploy@v0` → live channel
 
 If any gate fails, the deploy is blocked — this is intentional.
 
@@ -69,6 +77,7 @@ Pull requests run the same pipeline against a temporary preview channel via `fir
 
 ```bash
 npm run build
+npm run verify:build
 npm run deploy        # firebase deploy --only hosting
 ```
 
@@ -76,11 +85,25 @@ npm run deploy        # firebase deploy --only hosting
 
 Firebase Hosting keeps the previous releases (Hosting → Releases / Console). Re-deploy a prior build, or revert the commit and push — CI redeploys the restored state.
 
+## Post-deploy smoke check
+
+After a production deploy, confirm on the live site:
+
+1. The page renders the sign-in screen (a blank page means the bundle is empty — check that
+   `verify:build` ran in CI).
+2. Google sign-in works.
+3. Sending, editing, deleting, reacting, and replying all work.
+4. The online counter appears next to your own name.
+5. The theme toggle switches light/dark and survives a reload.
+
 ## Troubleshooting
 
-| Symptom                                | Likely cause                                                                |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| CI build fails with "undefined" config | Missing `REACT_APP_FIREBASE_*` secrets → add them (above)                   |
-| Messages won't send after deploy       | `firestore.rules` not deployed → `firebase deploy --only firestore`         |
-| Google sign-in broken                  | Google provider not enabled in Firebase Auth                                |
-| Old broken site still live             | Previous deploy predates env configurability → push the new build to `main` |
+| Symptom                                  | Likely cause                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------- |
+| CI build fails with "undefined" config   | Missing `REACT_APP_FIREBASE_*` secrets → add them (above)                     |
+| Blank white page in production           | Empty bundle → check that `src/index.tsx` is not empty and `verify:build` ran |
+| Messages won't send after deploy         | `firestore.rules` not deployed → `firebase deploy --only firestore:rules`     |
+| Replies/reactions fail but sending works | Rules on the server are older than the client → redeploy the rules            |
+| Online count stuck or empty              | Presence rules not deployed, or all peers are outside the 120 s window        |
+| Google sign-in broken                    | Google provider not enabled in Firebase Auth                                  |
+| Old broken site still live               | Previous deploy predates env configurability → push the new build to `main`   |

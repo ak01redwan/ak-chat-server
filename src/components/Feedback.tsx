@@ -1,6 +1,7 @@
-import { LogoMark } from './icons';
+import { useEffect, useState } from 'react';
+import { LogoMark, WifiOffIcon } from './icons';
 
-/** Generic loading state used while auth / Firestore settle. */
+/** Generic loading state used while auth settles. */
 export function LoadingState() {
   return (
     <div className="state" role="status">
@@ -45,6 +46,35 @@ export function ConfigurationError({ message }: { message: string }) {
         Copy <code>.env.example</code> to <code>.env</code>, fill in your Firebase web app
         credentials, then restart. See the deployment guide for details.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Warns the user when the browser reports no connectivity. Firestore streams
+ * automatically retry, so this is purely informational.
+ */
+export function OfflineBanner() {
+  const [offline, setOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const goOffline = () => setOffline(true);
+    const goOnline = () => setOffline(false);
+
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+    };
+  }, []);
+
+  if (!offline) return null;
+
+  return (
+    <div className="offline-banner" role="status">
+      <WifiOffIcon size={16} />
+      <span>You are offline — messages will send when the connection returns.</span>
     </div>
   );
 }

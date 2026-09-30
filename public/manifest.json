@@ -1,12 +1,18 @@
 {
-  "short_name": "AK-CHAT",
+  "id": "/",
   "name": "AK-CHAT — Real-time Community Chat",
-  "description": "Real-time community group chat for AK01REDWAN followers and friends.",
+  "short_name": "AK-CHAT",
+  "description": "Real-time community group chat for AK01REDWAN followers and friends: chat live, react, reply and share updates.",
   "lang": "en",
+  "dir": "ltr",
   "start_url": ".",
+  "scope": ".",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
   "background_color": "#0b1120",
   "theme_color": "#0b1120",
+  "categories": ["social", "communication", "entertainment"],
   "icons": [
     {
       "src": "favicon.ico",
@@ -17,13 +23,28 @@
       "src": "logo192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "logo512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open AK-CHAT",
+      "short_name": "Chat",
+      "description": "Jump straight into the community chat",
+      "url": ".",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

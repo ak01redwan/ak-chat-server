@@ -1,5 +1,8 @@
 import type { User } from 'firebase/auth';
+import { usePresence } from '../hooks/usePresence';
+import OnlineCount from './OnlineCount';
 import SignOut from './SignOut';
+import ThemeToggle from './ThemeToggle';
 import { LogoMark } from './icons';
 
 interface HeaderProps {
@@ -7,6 +10,8 @@ interface HeaderProps {
 }
 
 export default function Header({ user }: HeaderProps) {
+  const { onlineCount, ready } = usePresence(user ?? null);
+
   return (
     <header className="header">
       <div className="header__brand">
@@ -19,14 +24,22 @@ export default function Header({ user }: HeaderProps) {
         </div>
       </div>
 
-      {user ? (
-        <div className="header__user">
-          <span className="header__greeting">Signed in as {user.displayName ?? 'you'}</span>
-          <SignOut />
-        </div>
-      ) : (
-        <span className="header__guest">Guest</span>
-      )}
+      <div className="header__right">
+        {user ? (
+          <OnlineCount count={onlineCount} ready={ready} />
+        ) : (
+          <span className="header__guest">Guest</span>
+        )}
+        <ThemeToggle />
+        {user && (
+          <div className="header__user">
+            <span className="header__greeting">
+              {user.displayName ? `Hi, ${user.displayName.split(' ')[0]}` : 'Hi, there'}
+            </span>
+            <SignOut />
+          </div>
+        )}
+      </div>
     </header>
   );
 }

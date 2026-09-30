@@ -1,22 +1,117 @@
+/*
+ * AK-CHAT design tokens + global base.
+ *
+ * Theming model
+ * -------------
+ * Tokens are defined on :root (dark default) and overridden for the light
+ * theme via [data-theme='light']. The effective theme is applied on <html>
+ * by ThemeContext (light | dark | system). `body` background and text colors
+ * are driven purely by tokens, so switching themes never restyles internals.
+ */
+
 :root {
+  /* Typography */
+  --font-sans:
+    'Inter', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+
+  /* Color — dark (default) */
   --color-bg: #0b1120;
   --color-bg-elevated: #0f172a;
   --color-surface: #151f35;
   --color-surface-hover: #1c2a49;
+  --color-surface-active: #233456;
   --color-border: rgba(148, 163, 184, 0.16);
+  --color-border-strong: rgba(148, 163, 184, 0.3);
   --color-text: #e2e8f0;
   --color-text-muted: #94a3b8;
+  --color-text-faint: #64748b;
   --color-accent: #22d3ee;
   --color-accent-strong: #06b6d4;
+  --color-accent-soft: rgba(34, 211, 238, 0.12);
   --color-accent-contrast: #062a33;
+  --color-secondary: #a78bfa;
+  --color-secondary-soft: rgba(167, 139, 250, 0.12);
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
   --color-danger: #f87171;
   --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-own-bubble: linear-gradient(180deg, #06b6d4, #0891b2);
+  --color-own-text: #ffffff;
+  --color-scrollbar: rgba(148, 163, 184, 0.25);
+  --color-overlay: rgba(2, 6, 23, 0.72);
+  --shadow-card: 0 20px 50px rgba(2, 6, 23, 0.55);
+  --shadow-pop: 0 12px 32px rgba(2, 6, 23, 0.5);
+  --shadow-focus: 0 0 0 3px rgba(34, 211, 238, 0.18);
+
+  /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
-  --shadow-card: 0 20px 50px rgba(2, 6, 23, 0.55);
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --radius-pill: 999px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 140ms;
+  --duration-med: 220ms;
+
+  /* Layout */
+  --header-height: 64px;
+  --chat-max-width: 860px;
+  --z-header: 20;
+  --z-modal: 50;
+
+  /* Backgrounds */
+  --bg-glow-a: radial-gradient(1100px 560px at 82% -12%, rgba(34, 211, 238, 0.16), transparent 62%);
+  --bg-glow-b: radial-gradient(900px 480px at -4% 112%, rgba(167, 139, 250, 0.18), transparent 62%);
+  --bg-glow-c: radial-gradient(720px 380px at 110% 92%, rgba(236, 72, 153, 0.08), transparent 60%);
+}
+
+/* Light theme overrides. */
+[data-theme='light'] {
+  --color-bg: #f1f5f9;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #eef2f7;
+  --color-surface-active: #e2e8f0;
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-strong: rgba(15, 23, 42, 0.24);
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-faint: #94a3b8;
+  --color-accent: #0891b2;
+  --color-accent-strong: #0e7490;
+  --color-accent-soft: rgba(8, 145, 178, 0.12);
+  --color-accent-contrast: #ffffff;
+  --color-secondary: #7c3aed;
+  --color-secondary-soft: rgba(124, 58, 237, 0.12);
+  --color-success: #059669;
+  --color-success-bg: rgba(5, 150, 105, 0.12);
+  --color-warning: #d97706;
+  --color-warning-bg: rgba(217, 119, 6, 0.12);
+  --color-danger: #dc2626;
+  --color-danger-bg: rgba(220, 38, 38, 0.1);
+  --color-own-bubble: linear-gradient(180deg, #0891b2, #0e7490);
+  --color-own-text: #ffffff;
+  --color-scrollbar: rgba(15, 23, 42, 0.22);
+  --color-overlay: rgba(15, 23, 42, 0.45);
+  --shadow-card: 0 20px 46px rgba(15, 23, 42, 0.12);
+  --shadow-pop: 0 12px 30px rgba(15, 23, 42, 0.14);
+  --shadow-focus: 0 0 0 3px rgba(8, 145, 178, 0.2);
+  --bg-glow-a: radial-gradient(1100px 560px at 82% -12%, rgba(8, 145, 178, 0.1), transparent 62%);
+  --bg-glow-b: radial-gradient(900px 480px at -4% 112%, rgba(124, 58, 237, 0.1), transparent 62%);
+  --bg-glow-c: radial-gradient(720px 380px at 110% 92%, rgba(190, 24, 93, 0.06), transparent 60%);
 }
 
 *,
@@ -31,6 +126,14 @@ body,
   height: 100%;
 }
 
+html {
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);
@@ -39,12 +142,59 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+body,
+input,
+textarea,
+button {
+  font-family: var(--font-sans);
 }
 
 button {
-  font-family: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Accessible focus ring for keyboard users only. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  box-shadow: var(--shadow-focus);
 }
 
 ::selection {
   background: rgba(34, 211, 238, 0.3);
+}
+
+/* Skip-to-content link for keyboard users. */
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 16px;
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 700;
+  text-decoration: none;
+  transition: top var(--duration-fast) var(--ease-out);
+}
+
+.skip-link:focus {
+  top: 0;
 }

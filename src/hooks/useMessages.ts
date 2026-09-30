@@ -11,10 +11,31 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { MESSAGE_PAGE_SIZE, messagesCollection } from '../firebase/messages';
-import type { ChatMessage } from '../types/message';
+import type { ChatMessage, MessageReactions, ReplyTo } from '../types/message';
+import { sanitizeReplyTo } from '../utils/validation';
+
+/**
+ * Reads an untrusted `reactions` map into a clean Record<emoji, uid[]>.
+ * Malformed entries (non-list values, non-string uids) are discarded so a
+ * corrupted document can never break rendering.
+ */
+function mapReactions(value: unknown): MessageReactions | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+
+  const result: MessageReactions = {};
+  for (const [emoji, users] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(users)) continue;
+    const ids = users.filter((u): u is string => typeof u === 'string');
+    if (ids.length > 0) result[emoji] = ids;
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 function mapDocument(doc: QueryDocumentSnapshot): ChatMessage {
   const data = doc.data() as Partial<ChatMessage>;
+  const replyTo: ReplyTo | null = sanitizeReplyTo(data.replyTo);
+
   return {
     id: doc.id,
     text: typeof data.text === 'string' ? data.text : '',
@@ -22,6 +43,8 @@ function mapDocument(doc: QueryDocumentSnapshot): ChatMessage {
     displayName: typeof data.displayName === 'string' ? data.displayName : null,
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : null,
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : null,
+    replyTo,
+    reactions: mapReactions(data.reactions),
   };
 }
 

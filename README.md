@@ -11,8 +11,12 @@ A real-time community chat room for friends and followers of **AK01REDWAN**. Sig
 - **Plenty of room for anyone** — sign in with Google and join the conversation.
 - **Real-time messaging** — new messages stream in live via Firestore.
 - **Pagination** — the latest 25 messages load instantly; older history loads on demand.
-- **Modern dark UI** — accessible, responsive, refreshed design.
-- **Typed and tested** — TypeScript strict mode, 43 unit tests, lint + typecheck gates.
+- **Rich messages** — emoji reactions, quoted replies, inline editing, and deletion.
+- **Message search** — filter the loaded history by text and author.
+- **Online presence** — a heartbeat-backed roster shows who is currently online.
+- **Light / dark / system theme** — follows your OS by default, remembers your choice.
+- **Modern, accessible UI** — responsive design, keyboard support, `prefers-reduced-motion`.
+- **Typed and tested** — TypeScript strict mode, 97 unit tests, lint + typecheck gates.
 - **Community guidelines** — a code-of-conduct modal greets new visitors.
 
 ## Tech stack
@@ -74,6 +78,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full deployment guide, incl
 | `npm test`             | Jest in interactive watch mode                |
 | `npm run test:ci`      | Runs the full suite once with coverage        |
 | `npm run build`        | Production build to `build/`                  |
+| `npm run verify:build` | Smoke-checks the build output before deploy   |
 | `npm run format`       | Applies Prettier formatting                   |
 | `npm run format:check` | Verifies formatting (CI gate)                 |
 | `npm run deploy`       | Deploys the current build to Firebase Hosting |
@@ -84,7 +89,9 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full deployment guide, incl
 - [Deployment](docs/DEPLOYMENT.md) — Firebase setup, GitHub Actions secrets, deploy/rollback
 - [Security](docs/SECURITY.md) — Firestore rules, input validation, secrets handling
 - [Testing](docs/TESTING.md) — test strategy, mocking patterns, running the suite
+- [Roadmap](docs/ROADMAP.md) — what shipped, what is next, what is deliberately out of scope
 - [Changelog](CHANGELOG.md) — release notes
+- [Development report](FINAL_REPORT.md) — the full audit and upgrade report (Arabic)
 
 ## Community guidelines
 

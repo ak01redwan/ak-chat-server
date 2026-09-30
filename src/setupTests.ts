@@ -25,3 +25,34 @@ if (typeof globalThis.TextEncoder === 'undefined') {
 if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = jest.fn();
 }
+
+// jsdom does not implement window.matchMedia, which the theme provider uses to
+// follow the OS color-scheme preference. Provide an inert implementation that
+// reports "no match" (i.e. dark theme) unless a test overrides it.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
+// jsdom does not implement the async clipboard API used by "copy message".
+// `configurable` is required because @testing-library/user-event installs its
+// own clipboard stub on userEvent.setup().
+if (typeof navigator !== 'undefined' && !navigator.clipboard) {
+  Object.defineProperty(navigator, 'clipboard', {
+    writable: true,
+    configurable: true,
+    value: { writeText: () => Promise.resolve() },
+  });
+}

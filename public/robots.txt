@@ -1,3 +1,7 @@
 # https://www.robotstxt.org/robotstxt.html
+# AK-CHAT is a public marketing/auth landing page; the chat itself requires
+# sign-in, so there is nothing private to hide from crawlers.
 User-agent: *
-Disallow:
+Allow: /
+
+Sitemap: https://ak-chat-server.web.app/sitemap.xml

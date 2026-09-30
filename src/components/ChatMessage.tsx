@@ -1,10 +1,28 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { ChatMessage as ChatMessageModel } from '../types/message';
-import { formatMessageDate, formatMessageTime, sanitizePhotoURL } from '../utils/validation';
+import {
+  formatMessageDate,
+  formatMessageTime,
+  formatTimeAgo,
+  MAX_MESSAGE_LENGTH,
+  replyPreview,
+  sanitizePhotoURL,
+  sanitizeReplyTo,
+  validateMessage,
+} from '../utils/validation';
+import MessageActions from './MessageActions';
+import ReactionsBar from './ReactionsBar';
 
 interface ChatMessageProps {
   message: ChatMessageModel;
   isOwn: boolean;
+  /** The signed-in user's id, used to highlight their own reactions. */
+  currentUserId?: string;
+  onCopy?: (text: string) => void;
+  onReply?: (message: ChatMessageModel) => void;
+  onEdit?: (id: string, text: string) => Promise<void> | void;
+  onDelete?: (id: string) => void;
+  onToggleReaction?: (id: string, emoji: string) => void;
 }
 
 /** Builds a short avatar placeholder from the author's display name. */
@@ -19,16 +37,141 @@ function initialsFor(name: string | null): string {
   return initials || '?';
 }
 
-export default function ChatMessage({ message, isOwn }: ChatMessageProps) {
+function ChatMessage({
+  message,
+  isOwn,
+  currentUserId,
+  onCopy,
+  onReply,
+  onEdit,
+  onDelete,
+  onToggleReaction,
+}: ChatMessageProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(message.text);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const photoURL = sanitizePhotoURL(message.photoURL);
   const showImage = Boolean(photoURL) && !imageFailed;
+  const replyTo = sanitizeReplyTo(message.replyTo);
+  const author = message.displayName || 'Anonymous';
+
+  function startEditing() {
+    setDraft(message.text);
+    setEditError(null);
+    setIsEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!onEdit) return;
+    const result = validateMessage(draft);
+    if (!result.valid) {
+      setEditError(result.error ?? 'Message is invalid.');
+      return;
+    }
+    if ((result.value as string) === message.text) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    setEditError(null);
+    try {
+      await onEdit(message.id, result.value as string);
+      setIsEditing(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to update the message.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const body = (
+    <>
+      <div className="message__meta">
+        <span className="message__author">{author}</span>
+        {message.createdAt && (
+          <time
+            className="message__time"
+            data-testid="message-time"
+            dateTime={message.createdAt.toDate().toISOString()}
+            title={`${formatMessageDate(message.createdAt)} ${formatMessageTime(
+              message.createdAt
+            )} • ${formatTimeAgo(message.createdAt)}`}
+          >
+            {formatTimeAgo(message.createdAt)}
+          </time>
+        )}
+        {message.pending && <span className="message__pending">Sending…</span>}
+      </div>
+
+      {isEditing ? (
+        <div className="message__edit">
+          <textarea
+            className="message__edit-input"
+            value={draft}
+            autoFocus
+            maxLength={MAX_MESSAGE_LENGTH}
+            aria-label={`Edit your message from ${author}`}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setEditError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void saveEdit();
+              }
+              if (e.key === 'Escape') setIsEditing(false);
+            }}
+          />
+          {editError && (
+            <p className="message__edit-error" role="alert">
+              {editError}
+            </p>
+          )}
+          <div className="message__edit-actions">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setIsEditing(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => void saveEdit()}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="message__text">{message.text}</p>
+
+          {onToggleReaction && (
+            <ReactionsBar
+              reactions={message.reactions}
+              currentUserId={currentUserId ?? message.uid}
+              onToggle={(emoji) => onToggleReaction(message.id, emoji)}
+            />
+          )}
+        </>
+      )}
+    </>
+  );
 
   return (
     <article
       className={`message ${isOwn ? 'message--own' : 'message--other'}`}
       data-testid={isOwn ? 'message-own' : 'message-other'}
-      aria-label={`Message from ${message.displayName ?? 'Anonymous'}`}
+      aria-label={`Message from ${author}`}
     >
       <div className="message__avatar" aria-hidden="true">
         {showImage ? (
@@ -37,6 +180,8 @@ export default function ChatMessage({ message, isOwn }: ChatMessageProps) {
             data-testid="message-avatar-img"
             src={photoURL as string}
             alt=""
+            loading="lazy"
+            decoding="async"
             referrerPolicy="no-referrer"
             onError={() => setImageFailed(true)}
           />
@@ -47,21 +192,28 @@ export default function ChatMessage({ message, isOwn }: ChatMessageProps) {
         )}
       </div>
 
-      <div className="message__body">
-        <header className="message__meta">
-          <span className="message__author">{message.displayName || 'Anonymous'}</span>
-          {message.createdAt && (
-            <time
-              className="message__time"
-              data-testid="message-time"
-              dateTime={message.createdAt.toDate().toISOString()}
-            >
-              {formatMessageDate(message.createdAt)} · {formatMessageTime(message.createdAt)}
-            </time>
-          )}
-        </header>
-        <p className="message__text">{message.text}</p>
+      <div className="message__column">
+        {replyTo && (
+          <div className="message__reply-quote" data-testid="message-reply-quote">
+            <span className="message__reply-author">{replyTo.displayName || 'Anonymous'}</span>
+            <span className="message__reply-text">{replyPreview(replyTo.text, 90)}</span>
+          </div>
+        )}
+
+        {body}
+
+        {!isEditing && (onCopy || onReply || (isOwn && (onEdit || onDelete))) && (
+          <MessageActions
+            isOwn={isOwn}
+            onCopy={() => onCopy?.(message.text)}
+            onReply={() => onReply?.(message)}
+            onEdit={startEditing}
+            onDelete={() => onDelete?.(message.id)}
+          />
+        )}
       </div>
     </article>
   );
 }
+
+export default memo(ChatMessage);

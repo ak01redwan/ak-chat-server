@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { configError, getFirebaseAuth, isFirebaseConfigured } from './firebase/config';
+import { ThemeProvider } from './context/ThemeContext';
 import ChatRoom from './components/ChatRoom';
 import CodeOfConductModal from './components/CodeOfConductModal';
-import { ConfigurationError, ErrorBanner, LoadingState } from './components/Feedback';
+import {
+  ConfigurationError,
+  ErrorBanner,
+  LoadingState,
+  OfflineBanner,
+} from './components/Feedback';
 import Header from './components/Header';
 import SignIn from './components/SignIn';
 import './App.css';
@@ -23,9 +29,15 @@ function ChatApplication() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Skip to chat
+      </a>
+
       <Header user={user} />
 
-      <main className="app-main">
+      <OfflineBanner />
+
+      <main className="app-main" id="main-content">
         {authError && <ErrorBanner message={authError.message} />}
 
         {user ? <ChatRoom user={user} /> : authLoading ? <LoadingState /> : <SignIn />}
@@ -34,6 +46,17 @@ function ChatApplication() {
       {user && !codeOfConductAccepted && (
         <CodeOfConductModal onAccept={handleAcceptCodeOfConduct} />
       )}
+
+      <footer className="app-footer">
+        <span>
+          AK-CHAT by{' '}
+          <a href="https://ak01redwan.is-a.dev/" target="_blank" rel="noreferrer noopener">
+            AK01REDWAN
+          </a>
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>Be kind, stay on topic.</span>
+      </footer>
     </div>
   );
 }
@@ -44,8 +67,16 @@ function ChatApplication() {
  */
 export default function App() {
   if (!isFirebaseConfigured) {
-    return <ConfigurationError message={configError ?? 'Firebase is not configured.'} />;
+    return (
+      <ThemeProvider>
+        <ConfigurationError message={configError ?? 'Firebase is not configured.'} />
+      </ThemeProvider>
+    );
   }
 
-  return <ChatApplication />;
+  return (
+    <ThemeProvider>
+      <ChatApplication />
+    </ThemeProvider>
+  );
 }
