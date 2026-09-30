@@ -21,6 +21,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "verify:build": "node scripts/verify-build.js",
+    "verify:rules": "node scripts/check-rules.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run verify:rules && npm run test:ci && npm run build && npm run verify:build",
     "test": "react-scripts test",
     "test:ci": "react-scripts test --watchAll=false --coverage --testTimeout=20000",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 0",

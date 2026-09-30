@@ -15,22 +15,35 @@ service cloud.firestore {
         && (url.matches('https://.*') || url.matches('http://.*'));
     }
 
+    // The exact emoji the client offers, written as literal characters so they
+    // are byte-identical to REACTION_EMOJIS in src/utils/validation.ts.
+    // Firestore Security Rules have NO higher-order `all()`/`exists()` (those
+    // are Realtime Database features), so the reaction keys are validated
+    // against this allowlist explicitly instead of being iterated.
+    function allowedReactionEmojis() {
+      return ['👍', '❤️', '😂', '🎉', '🔥'];
+    }
+
+    // One emoji entry: must be a list, capped at 50 reactors.
+    function validReactionEntry(reactions, emoji) {
+      return !(emoji in reactions) || (
+        reactions[emoji] is list
+        && reactions[emoji].size() <= 50
+      );
+    }
+
     // reactions: map of emoji -> list of uids.
-    // Caps: at most 8 distinct emojis, at most 50 reactors per emoji,
-    // so nobody can balloon a document with a huge payload.
+    // Caps: only allowlisted emoji keys, at most 50 reactors per emoji, so
+    // nobody can balloon a document with an arbitrary payload.
     function validReactions(reactions) {
       return reactions is map
-        && reactions.size() <= 8
-        && reactions.keys().all(emoji,
-          emoji is string
-          && emoji.size() > 0
-          && emoji.size() <= 8
-        )
-        && reactions.keys().all(emoji,
-          reactions[emoji] is list
-          && reactions[emoji].size() <= 50
-          && reactions[emoji].all(uid, uid is string && uid.size() > 0 && uid.size() <= 128)
-        );
+        && reactions.size() <= 5
+        && reactions.keys().hasOnly(allowedReactionEmojis())
+        && validReactionEntry(reactions, '👍')
+        && validReactionEntry(reactions, '❤️')
+        && validReactionEntry(reactions, '😂')
+        && validReactionEntry(reactions, '🎉')
+        && validReactionEntry(reactions, '🔥');
     }
 
     // replyTo: an immutable quote preview. Absent (null) is allowed.

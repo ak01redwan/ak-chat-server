@@ -4,12 +4,14 @@ The suite runs on **Jest + React Testing Library** (CRA's built-in test runner) 
 
 ## Running
 
-| Command                                               | What it does                                    |
-| ----------------------------------------------------- | ----------------------------------------------- |
-| `npm test`                                            | Interactive watch mode                          |
-| `npm run test:ci`                                     | Full run once, with coverage (also the CI gate) |
-| `npm run build && npm run verify:build`               | Build, then smoke-check the output              |
-| `npx react-scripts test src/utils/validation.test.ts` | Run a single suite                              |
+| Command                                               | What it does                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `npm test`                                            | Interactive watch mode                                                         |
+| `npm run test:ci`                                     | Full run once, with coverage (also the CI gate)                                |
+| `npm run build && npm run verify:build`               | Build, then smoke-check the output                                             |
+| `npm run verify:rules`                                | Static check for Firestore rules (forbidden functions + emoji allowlist drift) |
+| `npm run verify`                                      | Runs lint, typecheck, rules check, tests, build and verify:build in one pass   |
+| `npx react-scripts test src/utils/validation.test.ts` | Run a single suite                                                             |
 
 A Jest `src/setupTests.ts` provides:
 
@@ -69,6 +71,27 @@ Firebase modules are mocked at the module boundary — **no network, no SDK** in
 4. Wrap asynchronous state updates in `act()` (RL fires this automatically for its own helpers; explicit `await act(async () => {})` around promise-rejecting submit flows keeps the console clean).
 5. Assert user-observable behavior, not implementation details.
 6. Keep jest mock factories self-contained — referencing out-of-scope variables in a `jest.mock` factory is a compile error at runtime.
+
+## Firestore rules checks
+
+`npm run verify:rules` is a static check over `firestore.rules` that catches two failure
+modes which are otherwise invisible until production:
+
+1. **Forbidden higher-order functions.** Firestore Security Rules have no `all()` / `exists()`
+   (those are Realtime Database functions). The rules compiler reports them only as
+   _warnings_ and still says "compiled successfully", but at request time the expression
+   errors and the write is **denied**. This project shipped exactly that bug: `list.all(...)`
+   inside the reactions validator made every message create fail.
+2. **Reaction allowlist drift.** The rules validate reaction keys against a literal allowlist.
+   An off-by-one surrogate pair looks like a valid emoji but never matches, so reactions fail
+   with `PERMISSION_DENIED`.
+
+`node scripts/sync-reaction-emoji.mjs` rewrites the rules allowlist from
+`REACTION_EMOJIS` in the client, which is the safe way to change the reaction set.
+
+> Automated rules **execution** tests (via `@firebase/rules-unit-testing` + the Firestore
+> emulator) are not wired up yet: the emulator requires a JDK. Tracked in
+> [ROADMAP.md](ROADMAP.md).
 
 ## Coverage gate
 
