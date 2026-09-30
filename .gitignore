@@ -17,6 +17,12 @@
 # firebase CLI cache
 .firebase/
 
+# Firestore emulator debug log (written by `firebase emulators:exec`)
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+*.log.local
+
 # misc
 .DS_Store
 *.tsbuildinfo

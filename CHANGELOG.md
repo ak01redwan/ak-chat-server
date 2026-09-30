@@ -30,7 +30,18 @@ All notable changes to AK-CHAT are documented here. This project follows [Keep a
   link, `robots.txt`, `sitemap.xml`, and a 1200×630 `og-image.png`.
 - **Docs** — `docs/ROADMAP.md`, and refreshed `README.md` / architecture / security / testing /
   deployment guides.
-- **Test suite grew 43 → 97 tests** (6 → 8 suites), including theme and confirmation-modal suites.
+- **Firestore rules test suite** — `tests/firestore.rules.test.js`: 44 allow/deny assertions run
+  against the Firestore emulator (`npm run test:rules`) via `@firebase/rules-unit-testing`.
+  `firebase emulators:exec` boots and tears down the emulator, so no manual server is involved.
+  Covers read auth, self-authored creates, forged `uid`, client-controlled timestamps, unexpected
+  fields, text limits, reply-preview keys, the reaction allowlist, impersonation on edit,
+  author-only delete, and self-only presence.
+- **Static rules guard** — `npm run verify:rules` scans `firestore.rules` for Realtime-Database-only
+  functions and for drift between the rules emoji allowlist and `REACTION_EMOJIS` in the client.
+  `npm run verify:rules:self-test` proves the scan actually fails on known-bad rules (9 fixtures),
+  so the guard cannot silently regress into a no-op.
+- **Rules CI gate** — both workflows gained a `rules_tests` job (Java 21 + emulator) that the
+  deploy jobs `needs`, so a rule that breaks writes can never reach production again.
 
 ### Changed
 
@@ -38,21 +49,41 @@ All notable changes to AK-CHAT are documented here. This project follows [Keep a
   `text, uid, displayName, photoURL, createdAt, replyTo, reactions`; update is split into two
   explicit paths — the author may change only `text`, any signed-in user may change only
   `reactions` — and a new `presence/{uid}` match allows only self-writes with a server timestamp.
+- `photoURL` is now **https-only** in both the rules and `sanitizePhotoURL`, matching the documented
+  intent. The app is served over HTTPS, so a plaintext avatar was blocked as mixed content by the
+  browser anyway; the documentation previously claimed https-only while the code accepted `http://`.
+- `npm run verify` is now the single full gate: format check, lint, typecheck, static rules check,
+  rules-checker self-test, rules emulator tests, app tests, build, and build verification.
 - `src/firebase/messages.ts` gained `editMessage`, `deleteMessage`, and `setMessageReactions`.
 - `src/index.css` and `src/App.css` rebuilt around design tokens with a full light and dark palette,
   visible focus states, and responsive layouts down to small phones.
+- **Test suite grew 43 → 98 tests** (6 → 8 suites), including theme and confirmation-modal suites.
 - Hosting headers extended with `Strict-Transport-Security` and `Permissions-Policy`.
 - CI now runs `verify:build` between `build` and deploy.
 - `test:ci` uses a 20 s per-test timeout to remove flakiness on slow Windows CI runners.
 
 ### Fixed
 
+- **`firestore.rules` denied every message create in production.** The reactions validator used
+  `list.all(...)`, a Realtime Database function that does not exist in Firestore rules. The deploy
+  reported only a _warning_ and still said `compiled successfully`, so the broken rule shipped and
+  the expression errored at request time. Replaced with an explicit per-emoji check (allowlist,
+  list type, ≤50 reactors, ≤5 keys). Found by deploying and then testing behaviour, not by reading
+  the file.
+- **Authors could impersonate anyone on their own old messages.** `canEditOwnMessage()` compared
+  `uid`, `createdAt`, `replyTo` and `reactions` against the stored document but omitted
+  `displayName` and `photoURL`, so an author could edit a message and set their display name to
+  "Moderator". Both fields are now immutable on edit.
+- **`verify:rules` could not have caught the original bug.** Its pattern used a `(?<![.\w])`
+  lookbehind that skipped every receiver-style call, so `list.all(...)` — the exact shape that
+  reached production — was invisible to it. The pattern now matches method calls as well.
 - **`src/index.tsx` was committed empty (0 bytes)** — this was the live site's actual outage. CRA
   reported a successful build while emitting an empty `main.*.js`, so users saw a blank page.
   Restored, and `verify:build` now fails the build if it ever regresses.
 - Test-environment gaps that made the suite unreliable: `window.matchMedia` and
   `navigator.clipboard` were missing in jsdom, and CRA's `resetMocks: true` wiped module-level mock
   implementations between tests. All three are documented in `docs/TESTING.md`.
+- `docs/SECURITY.md` claimed the reaction map allowed 8 distinct emoji keys; the rule allows 5.
 
 ## [1.0.0] - 2026-09-22
 

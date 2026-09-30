@@ -35,19 +35,30 @@ Requires care: it is the first change that widens write permissions.
 
 ## Later
 
+- **Move reactions to a subcollection** — today `reactions` is a map of `emoji → uid[]` inside the
+  message document. Firestore rules cannot iterate a list, so the rules cap each list at 50 entries
+  but cannot verify the uids are real users: a signed-in client can inject arbitrary strings and
+  skew a reaction count. Storing reactions as `messages/{messageId}/reactions/{uid}` with the emoji
+  as a field makes the uid unforgeable (the document id _is_ the auth uid), removes the list-length
+  cap, and lets a Cloud Function maintain accurate counts. This is the highest-value security
+  change on the list.
 - **Attachments / images** — needs a storage quota, a size and type allowlist, and an abuse plan
   (storage costs money and is trivially spammable). Not a small feature.
 - **Message archive / full-text search** — search today covers only the loaded page window; real
   search means an Algolia/Typesense index or Firestore + a dedicated search collection.
 - **Rate limiting** — a client can still write as fast as it likes; a Cloud Function or App Check
   would be the enforcement point.
+- **App Check** — the rules trust the Firebase Auth token. App Check would additionally prove a
+  request came from this app rather than a hand-rolled HTTP client.
 - **Push notifications** — FCM, which needs permissions UX and a service worker.
 
 ## Deliberately out of scope for now
 
 - **Migrating off Create React App.** CRA 5 is unmaintained, which is a real long-term risk, but a
   Vite migration is its own project. The current build is fast enough and CI is green. Revisit when
-  a dependency starts blocking an upgrade.
+  a dependency starts blocking an upgrade. Note that `npm audit` currently reports 0 findings in
+  direct production dependencies; the remaining advisories are all in dev/build tooling that never
+  reaches the browser. A Vite migration would also let the `firebase` SDK move to a current major.
 - **A Content-Security-Policy.** It cannot be switched on safely without first validating the exact
   origins Firebase Auth and Firestore need in production; an untested CSP risks breaking sign-in.
   The other security headers (HSTS, `Permissions-Policy`, `nosniff`, `X-Frame-Options`,
@@ -57,8 +68,13 @@ Requires care: it is the first change that widens write permissions.
 
 ## Maintenance rules of thumb
 
-- Every PR must keep `lint`, `typecheck`, `test:ci`, and `verify:build` green.
+- Every PR must keep `npm run verify` green: format, lint, typecheck, static rules check, rules
+  self-test, **rules emulator tests**, app tests, build and build verification.
 - Any change to `firestore.rules` needs a matching `firebase deploy --only firestore:rules`; the
   CI deploy does **not** ship rules.
+- **A successful `firebase deploy` is not evidence that the rules work.** It reports
+  `compiled successfully` even when the file contains functions that do not exist. Run
+  `npm run test:rules` before deploying.
+- Rules tests need a JDK 21. CI installs it via `actions/setup-java`; locally install Temurin.
 - Never commit `.env` or any service-account JSON.
 - Bump the version in `package.json` and add a `CHANGELOG.md` entry when releasing.

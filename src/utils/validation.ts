@@ -36,9 +36,10 @@ export function validateMessage(text: string): ValidationResult {
 }
 
 /**
- * Restricts profile photo URLs to http(s) with a reasonable length cap.
+ * Restricts profile photo URLs to https with a reasonable length cap.
  * Returns `null` for anything that cannot be used safely as an <img> src.
- * Mirrors the Firestore security-rule validation.
+ * https-only mirrors the Firestore security-rule validation, and a plaintext
+ * avatar would be blocked as mixed content on this https-only site anyway.
  */
 export function sanitizePhotoURL(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > 512) {
@@ -47,7 +48,7 @@ export function sanitizePhotoURL(value: unknown): string | null {
 
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
+    return url.protocol === 'https:' ? url.toString() : null;
   } catch {
     return null;
   }

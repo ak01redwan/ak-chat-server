@@ -71,6 +71,10 @@ describe('sanitizePhotoURL', () => {
     expect(sanitizePhotoURL('data:text/html,hi')).toBeNull();
   });
 
+  it('rejects plaintext http URLs (site is https-only)', () => {
+    expect(sanitizePhotoURL('http://placehold.co/100.png')).toBeNull();
+  });
+
   it('returns null for URLs longer than 512 characters', () => {
     expect(sanitizePhotoURL(`https://example.com/${'a'.repeat(600)}`)).toBeNull();
   });

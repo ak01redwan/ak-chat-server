@@ -1,17 +1,33 @@
 # Testing
 
-The suite runs on **Jest + React Testing Library** (CRA's built-in test runner) with 97 tests across 8 suites covering validation, hooks, and components.
+There are two separate suites, because they catch different classes of bug:
+
+| Suite                        | Tests | Runner                       | Needs a JDK? |
+| ---------------------------- | ----- | ---------------------------- | ------------ |
+| App (validation, hooks, UI)  | 98    | Jest + React Testing Library | no           |
+| `firestore.rules` (security) | 44    | Jest + Firestore emulator    | **yes**      |
+
+The rules suite exists because a Firestore rules file can **compile successfully and still deny
+every write at runtime**. That is not hypothetical — it happened here, and the emulator suite is
+what proves the rules actually behave.
 
 ## Running
 
 | Command                                               | What it does                                                                   |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `npm test`                                            | Interactive watch mode                                                         |
-| `npm run test:ci`                                     | Full run once, with coverage (also the CI gate)                                |
+| `npm run test:ci`                                     | Full app run once, with coverage (the app CI gate)                             |
+| `npm run test:rules`                                  | Firestore rules tests against the emulator (the rules CI gate)                 |
 | `npm run build && npm run verify:build`               | Build, then smoke-check the output                                             |
-| `npm run verify:rules`                                | Static check for Firestore rules (forbidden functions + emoji allowlist drift) |
-| `npm run verify`                                      | Runs lint, typecheck, rules check, tests, build and verify:build in one pass   |
-| `npx react-scripts test src/utils/validation.test.ts` | Run a single suite                                                             |
+| `npm run verify:rules`                                | Static scan of `firestore.rules` (forbidden functions + emoji allowlist drift) |
+| `npm run verify:rules:self-test`                      | Proves the static scan fails on known-bad rules (9 fixtures)                   |
+| `npm run verify`                                      | Everything above in one pass                                                   |
+| `npx react-scripts test src/utils/validation.test.ts` | Run a single app suite                                                         |
+
+> `npm run verify` and `npm run test:rules` need a **JDK 21** (`winget install
+EclipseAdoptium.Temurin.21.JDK`, or `brew install openjdk@21`) because the Firestore emulator
+> runs on the JVM. The app suite, lint, typecheck and build have no such requirement. CI installs
+> the JDK explicitly with `actions/setup-java`.
 
 A Jest `src/setupTests.ts` provides:
 
@@ -72,26 +88,58 @@ Firebase modules are mocked at the module boundary — **no network, no SDK** in
 5. Assert user-observable behavior, not implementation details.
 6. Keep jest mock factories self-contained — referencing out-of-scope variables in a `jest.mock` factory is a compile error at runtime.
 
-## Firestore rules checks
+## Firestore rules tests
 
-`npm run verify:rules` is a static check over `firestore.rules` that catches two failure
-modes which are otherwise invisible until production:
+`tests/firestore.rules.test.js` runs **44 allow/deny assertions against the Firestore emulator** via
+`@firebase/rules-unit-testing`. `firebase emulators:exec` boots the emulator, injects
+`FIRESTORE_EMULATOR_HOST`, and tears it down afterwards, so there is no manual server to manage.
 
-1. **Forbidden higher-order functions.** Firestore Security Rules have no `all()` / `exists()`
-   (those are Realtime Database functions). The rules compiler reports them only as
-   _warnings_ and still says "compiled successfully", but at request time the expression
-   errors and the write is **denied**. This project shipped exactly that bug: `list.all(...)`
-   inside the reactions validator made every message create fail.
+| Area          | Asserted                                                                                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `messages`    | reads denied when signed out; valid self-authored create allowed; forged `uid`, client `createdAt`, extra fields, empty/over-long text, non-https and over-long `photoURL` all denied |
+| reply preview | `replyTo` with the 3 allowed keys allowed; extra keys (e.g. a spoofed `uid`) denied                                                                                                   |
+| reactions     | allowlisted emoji allowed; **non-allowlisted key denied**; every emoji the client offers allowed; non-list value, >50 reactors, >5 keys denied                                        |
+| edit          | author may change `text`; editing another user's message, or signed-out, denied; changing `displayName`/`photoURL` denied (impersonation); content+reactions in one write denied      |
+| delete        | author allowed; other user and signed-out denied                                                                                                                                      |
+| `presence`    | roster denied when signed out; own row allowed; another user's row, wrong-uid path, client `lastSeen`, extra field denied                                                             |
+
+Fixtures are written with `withSecurityRulesDisabled` so setup bypasses the rules, then asserted
+through authenticated/unauthenticated contexts.
+
+### Why these tests are not optional
+
+Two bugs shipped from this file, and **neither was found by reading the rules**:
+
+1. `list.all(...)` — a Realtime-Database-only function inside the reactions validator. The compiler
+   warned, then reported `compiled successfully`, and production denied every message create.
+2. `canEditOwnMessage()` omitted `displayName`/`photoURL` from its immutability checks, so an author
+   could rename themselves to "Moderator" on an old message.
+
+To confirm the suite still has teeth, the `list.all(...)` bug was temporarily reintroduced: the
+static scan failed with exit code 1 and **6 of the rules tests failed**, including _allows a create
+carrying allowlisted reactions_. The bug was then reverted. A test suite that cannot fail on the
+original defect is not a safety net.
+
+## Static rules checks
+
+`npm run verify:rules` is a fast static scan over `firestore.rules` that catches:
+
+1. **Forbidden higher-order functions.** Firestore Security Rules have no `all()` / `exists()` /
+   `getAfter()` / `get()` / `hasAll()` / `hasAny()` (those are Realtime Database functions). The
+   compiler reports them only as _warnings_ and still says "compiled successfully", but at request
+   time the expression errors and the write is **denied**. The pattern matches receiver-style calls
+   (`list.all(...)`) as well as bare calls, which is the shape that caused the outage.
 2. **Reaction allowlist drift.** The rules validate reaction keys against a literal allowlist.
    An off-by-one surrogate pair looks like a valid emoji but never matches, so reactions fail
    with `PERMISSION_DENIED`.
 
+`npm run verify:rules:self-test` runs 9 fixtures through that scanner — the real
+`list.all(...)` shape, bare calls, each Realtime-only function, a legitimate identifier that merely
+ends in `all` (`allowedReactionEmojis(`), and forbidden names appearing only in comments. It
+guards against the scanner silently regressing into something that can never fail.
+
 `node scripts/sync-reaction-emoji.mjs` rewrites the rules allowlist from
 `REACTION_EMOJIS` in the client, which is the safe way to change the reaction set.
-
-> Automated rules **execution** tests (via `@firebase/rules-unit-testing` + the Firestore
-> emulator) are not wired up yet: the emulator requires a JDK. Tracked in
-> [ROADMAP.md](ROADMAP.md).
 
 ## Coverage gate
 

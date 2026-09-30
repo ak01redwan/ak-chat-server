@@ -9,10 +9,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // https-only: the app is served over HTTPS, so a plaintext avatar would be
+    // blocked as mixed content anyway. Rejecting it here keeps the contract
+    // honest and avoids leaking a referrer to an unencrypted host.
     function validPhotoURL(url) {
-      return url is string
-        && url.size() <= 512
-        && (url.matches('https://.*') || url.matches('http://.*'));
+      return url is string && url.size() <= 512 && url.matches('https://.*');
     }
 
     // The exact emoji the client offers, written as literal characters so they
@@ -101,13 +102,16 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
 
       // Update, path A: the author edits the text of their own message.
-      // Every immutable field (uid, createdAt, replyTo, reactions) must be
-      // byte-identical to what is already stored.
+      // Every other field (uid, createdAt, displayName, photoURL, replyTo,
+      // reactions) must be byte-identical to what is already stored — otherwise
+      // an author could rewrite their own display name and impersonate someone.
       function canEditOwnMessage() {
         return signedIn()
           && validMessageBody(request.resource.data)
           && request.resource.data.uid == resource.data.uid
           && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.displayName == resource.data.displayName
+          && request.resource.data.photoURL == resource.data.photoURL
           && request.resource.data.replyTo == resource.data.replyTo
           && request.resource.data.reactions == resource.data.reactions
           && isAuthor();

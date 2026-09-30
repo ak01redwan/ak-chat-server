@@ -70,18 +70,31 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full deployment guide, incl
 
 ## Available scripts
 
-| Script                 | Description                                   |
-| ---------------------- | --------------------------------------------- |
-| `npm start`            | Runs the app in development mode              |
-| `npm run lint`         | ESLint over `src` (fails on warnings)         |
-| `npm run typecheck`    | `tsc --noEmit` type checks                    |
-| `npm test`             | Jest in interactive watch mode                |
-| `npm run test:ci`      | Runs the full suite once with coverage        |
-| `npm run build`        | Production build to `build/`                  |
-| `npm run verify:build` | Smoke-checks the build output before deploy   |
-| `npm run format`       | Applies Prettier formatting                   |
-| `npm run format:check` | Verifies formatting (CI gate)                 |
-| `npm run deploy`       | Deploys the current build to Firebase Hosting |
+| Script                           | Description                                                         |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `npm start`                      | Runs the app in development mode                                    |
+| `npm run lint`                   | ESLint over `src` (fails on warnings)                               |
+| `npm run typecheck`              | `tsc --noEmit` type checks                                          |
+| `npm test`                       | Jest in interactive watch mode                                      |
+| `npm run test:ci`                | Runs the app suite once with coverage (98 tests)                    |
+| `npm run test:rules`             | Firestore rules tests against the emulator (44 tests, needs JDK 21) |
+| `npm run verify:rules`           | Static scan of `firestore.rules` (forbidden functions, emoji drift) |
+| `npm run verify:rules:self-test` | Proves the static scan fails on known-bad rules                     |
+| `npm run build`                  | Production build to `build/`                                        |
+| `npm run verify:build`           | Smoke-checks the build output before deploy                         |
+| `npm run format`                 | Applies Prettier formatting                                         |
+| `npm run format:check`           | Verifies formatting (CI gate)                                       |
+| `npm run verify`                 | Every gate above in one pass                                        |
+| `npm run deploy`                 | Deploys the current build to Firebase Hosting                       |
+
+> **`npm run test:rules` and `npm run verify` need a JDK 21** — the Firestore emulator runs on the
+> JVM. Install Temurin (`winget install EclipseAdoptium.Temurin.21.JDK` or `brew install
+openjdk@21`). CI installs it automatically.
+
+> **Firestore rules are not deployed by CI.** After changing `firestore.rules`, run
+> `npm run verify` then `firebase deploy --only firestore:rules`. A successful deploy only means
+> the file compiled — it does **not** mean the rules work, which is why the emulator tests are a
+> separate CI gate.
 
 ## Documentation
 

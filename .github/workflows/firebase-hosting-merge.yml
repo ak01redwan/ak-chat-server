@@ -10,7 +10,41 @@ permissions:
   contents: read
 
 jobs:
+  # Firestore rules are deployed by hand, so they get their own gate. These
+  # tests assert real allow/deny behaviour against the emulator, which is the
+  # only way to catch a rule that compiles with a warning yet denies every
+  # write at runtime.
+  rules_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java (required by the Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static rules check
+        run: npm run verify:rules
+
+      - name: Rules checker self-test
+        run: npm run verify:rules:self-test
+
+      - name: Firestore rules tests (emulator)
+        run: npm run test:rules
+
   build_and_deploy:
+    needs: rules_tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
