@@ -30,6 +30,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Verify Firestore rules
+        run: npm run verify:rules
+
       - name: Test
         run: npm run test:ci
 

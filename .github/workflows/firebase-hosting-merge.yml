@@ -30,6 +30,11 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # Catches Firestore rules that would silently deny writes at runtime
+      # (e.g. Realtime-Database-only functions) and reaction allowlist drift.
+      - name: Verify Firestore rules
+        run: npm run verify:rules
+
       - name: Test
         run: npm run test:ci
 
