@@ -53,23 +53,52 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 
 The last secret is the deployment credential used by `FirebaseExtended/action-hosting-deploy`. If the repository already had it (check the previous CI runs), keep it.
 
+> ### ⚠️ The 7 `REACT_APP_FIREBASE_*` secrets are load-bearing
+>
+> If they are **absent or empty**, the build does **not** fail. CRA inlines `""` for each missing
+> `process.env.REACT_APP_*`, the bundle is otherwise valid, CI goes green, and the deploy
+> succeeds — but the live site renders _"Missing Firebase configuration"_ instead of the chat.
+> This shipped to production once. The service-account secret can be present and working while
+> these 7 are missing, so a successful deploy proves nothing about them.
+>
+> Two guards now exist: the merge workflow fails fast when a secret is empty, and
+> `npm run verify:build` asserts each value was injected into the bundle. Verify at any time with:
+>
+> ```bash
+> gh secret list
+> npm run verify:build   # prints "firebase config injected: 6 vars"
+> ```
+>
+> These values are the public Firebase _web app_ config (they ship in any browser bundle and are
+> not a secret in the cryptographic sense). They are kept in GitHub secrets only so they are
+> managed in one place rather than committed to source.
+
 ## CI pipeline
 
 `.github/workflows/firebase-hosting-merge.yml` runs on every push to `main`:
 
 1. `actions/setup-node@v4` (Node 20, npm cache)
 2. `npm ci`
-3. `npm run lint`
-4. `npm run typecheck`
-5. `npm run test:ci`
-6. `npm run build` (with `REACT_APP_FIREBASE_*` from secrets)
-7. `npm run verify:build` — **guards against deploying an empty bundle.** A CRA build can
-   "succeed" while emitting a 0-byte `main.*.js` (exactly the outage this repo suffered, where
-   `src/index.tsx` was committed empty). This step fails the deploy if `index.html`, the JS bundle,
-   the CSS bundle, or the OG image are missing or suspiciously small.
-8. `FirebaseExtended/action-hosting-deploy@v0` → live channel
+3. `rules_tests` job (Java 21 + Firestore emulator): `verify:rules`, `verify:rules:self-test`, `test:rules`
+4. `npm run lint`
+5. `npm run typecheck`
+6. `npm run verify:rules`
+7. `npm run test:ci`
+8. **Check Firebase config secrets are present** — fails fast when a `REACT_APP_FIREBASE_*` secret
+   is missing, so the build goes red instead of shipping a bundle that cannot start.
+9. `npm run build` (with `REACT_APP_FIREBASE_*` from secrets)
+10. `npm run verify:build` — **guards against deploying a bundle that cannot run.** A CRA build can
+    "succeed" in two ways that both break production: emitting a 0-byte `main.*.js` (the outage
+    where `src/index.tsx` was committed empty), and inlining empty config (the
+    "Missing Firebase configuration" outage). This step fails the deploy if `index.html`, the JS
+    bundle, the CSS bundle, or the OG image are missing or suspiciously small, **or** if any
+    `REACT_APP_FIREBASE_*` value was not injected.
+11. `FirebaseExtended/action-hosting-deploy@v0` → live channel
 
-If any gate fails, the deploy is blocked — this is intentional.
+The deploy job `needs: rules_tests`, so a rule that would break writes also blocks the release.
+
+> A green CI run is **not** evidence that the site works. Verify the live site itself (open it, or
+> check that the deployed bundle contains your `appId`) after any deploy that touches config.
 
 Pull requests run the same pipeline against a temporary preview channel via `firebase-hosting-pull-request.yml`; a comment on the PR includes the preview URL.
 

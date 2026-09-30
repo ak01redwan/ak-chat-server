@@ -64,6 +64,17 @@ All notable changes to AK-CHAT are documented here. This project follows [Keep a
 
 ### Fixed
 
+- **The deployed site could not start: "Missing Firebase configuration".** The 7
+  `REACT_APP_FIREBASE_*` GitHub secrets had never been created, so every CI build inlined empty
+  strings. CRA exited 0, `verify:build` passed (it only checked that files existed), the deploy
+  succeeded, and CI was green — while every visitor saw an error instead of the chat. The
+  service-account secret _did_ exist, which is exactly why the deploy step worked and hid the
+  problem. Fixed by creating the secrets, and hardened twice:
+  - `scripts/verify-build.js` now asserts each `REACT_APP_FIREBASE_*` var was injected with a
+    non-empty value. Verified against the failure by building with `.env` moved aside: CRA still
+    exits 0, the new check exits 1 with an actionable message.
+  - The merge workflow fails fast when a secret is absent, so this surfaces as a red build rather
+    than a broken deploy.
 - **`firestore.rules` denied every message create in production.** The reactions validator used
   `list.all(...)`, a Realtime Database function that does not exist in Firestore rules. The deploy
   reported only a _warning_ and still said `compiled successfully`, so the broken rule shipped and

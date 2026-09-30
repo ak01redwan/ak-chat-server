@@ -21,6 +21,16 @@
 > بالقراءة — دالة `list.all()` التي كانت **تمنع كل عملية إنشاء رسالة** في الإنتاج، وغياب قيود على
 > `displayName` كان يسمح بالانتحال. التفاصيل في القسم 2 وفي `docs/SECURITY.md`.
 
+> **جولة ثالثة — الموقع لم يكن يعمل:** أبلغ المستخدم أن الموقع يعرض _"Missing Firebase
+> configuration"_. السبب: **أسرار `REACT_APP_FIREBASE_*` السبعة لم تكن مُنشأة في GitHub إطلاقًا**.
+> البناء لم يفشل (CRA يُدرج `""`)، و`verify:build` لم يكن يفحص الإعدادات، والنشر نجح، وCI كان
+> أخضر — بينما كل زائر يرى رسالة خطأ. **أُنشئت الأسرار، وأُضيف فحصان يمنعان التكرار**، ووُثِّق
+> الخطر في `docs/DEPLOYMENT.md`.
+>
+> **القاسم المشترك بين الثلاثة:** في كل مرة كان عبارة "البناء نجح" دليلاً كاذبًا. الدرس
+> المُعمَّم: تحقَّق من المُخرَج لا من رمز الخروج — `firebase deploy` و`npm run build` كلاهما يقول
+> "نجاح" وهو ينتج منتجًا معطوبًا.
+
 ---
 
 ## 1. العطل الحرج: لماذا كان الموقع أبيض
@@ -83,6 +93,19 @@
 > reactions"_، وهو بالضبط_symptom الإنتاج. ثم أُعيد التراجع عن الخلل. لمجموعة اختبارات لا تستطيع
 > أن تفشل على الخلل الأصلي ليست شبكة أمان.
 
+### حادثة النشر الثالثة: الموقع لم يكن يبدأ
+
+| البند            | التفصيل                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| العَرَض          | كل الزوار يرون _"Missing Firebase configuration"_ بدل الدردشة                                 |
+| السبب الجذري     | أسرار `REACT_APP_FIREBASE_*` السبعة **لم تكن مُنشأة في GitHub** إطلاقًا                       |
+| لماذا لم تفشل CI | CRA يُدرج `""` للقيم المفقودة ويُخرج 0؛ و`verify:build` كان يفحص وجود الملفات فقط؛ والنشر نجح |
+| لماذا أخفى الأمر | سر حساب الخدمة `FIREBASE_SERVICE_ACCOUNT_...` كان موجودًا، فنشر النشر بنجاح وأخفى الفشل       |
+| الإصلاح          | إنشاء الأسرار السبعة، ثم فحصان: `verify:build` يؤكد حقن القيم، والـ workflow يفشل مبكرًا      |
+
+> **الدليل على أن الفحص الجديد فعّال:** نُقل ملف `.env` جانبًا لإعادة إنتاج حالة CI حرفيًا —
+> البناء أنهى بخروج 0 بينما الفحص الجديد خرج بـ 1 برسالة إجرائية. ثم أُعيد `.env` كما كان.
+
 ---
 
 ## 3. بوابات الجودة — جميعها خضراء
@@ -97,8 +120,32 @@
 | `npm run test:rules` (Firestore emulator) | **44/44 ناجح**                  |
 | `npm run test:ci`                         | **98/98 ناجح** (8 مجموعات)      |
 | `npm run build`                           | ناجح — `165.73 kB` مضغوطًا      |
-| `npm run verify:build`                    | ناجح — الحزمة 538.3 KB          |
+| `npm run verify:build`                    | ناجح — 538.3 KB + حقن 6 إعدادات |
 | `npm run verify` (البوابة الشاملة)        | **خروج 0**                      |
+
+```
+$ npm run typecheck        → exited 0
+$ npm run verify:rules     → ✔ no forbidden functions, allowlist matches (5 emoji)
+$ npm run test:rules       → Tests: 44 passed, 44 total
+$ npm run test:ci          → Tests: 98 passed, 98 total
+$ npm run build            → "The build folder is ready to be deployed."
+$ npm run verify:build     → ✔ firebase config injected: 6 vars
+```
+
+### التحقق من الموقع الحي (بعد إصلاح الأسرار)
+
+```
+index.html                 → HTTP 200
+static/js/main.3bc0c9f7.js → HTTP 200, 538.3 KB
+apiKey         = AIzaSyADwJ6…   (مقبول من Google: مفتاح وهمي يُرجع "API key not valid")
+authDomain     = ak-chat-server.firebaseapp.com
+projectId      = ak-chat-server
+storageBucket  = ak-chat-server.appspot.com
+messagingSenderId = 368720793781
+appId          = 1:368720793781:web:b640cf023c74ed16936efc
+measurementId  = G-RQF1CPLTE3
+→ لا يوجد أي حقل فارغ، فـ configError = null والتطبيق يبدأ
+```
 
 ```
 $ npm run typecheck        → exited 0
