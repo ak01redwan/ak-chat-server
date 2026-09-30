@@ -12,6 +12,12 @@
  *   2. The main JS bundle exists and is larger than a minimal floor.
  *   3. A known app string is present in the bundle (the app really compiled).
  *   4. Required static files (manifest, icons, OG image) are present.
+ *   5. The Firebase config env vars were actually injected (see below).
+ *
+ * Check 5 exists because the build also exits 0 when REACT_APP_FIREBASE_* is
+ * missing: CRA simply inlines empty strings, and the deployed site then renders
+ * "Missing Firebase configuration" instead of the chat. That shipped once, and
+ * a green CI run is no proof the bundle is usable.
  */
 
 const fs = require('fs');
@@ -21,6 +27,20 @@ const BUILD_DIR = path.join(__dirname, '..', 'build');
 const MIN_BUNDLE_BYTES = 50 * 1024; // 50 KB — the real app bundle is ~500 KB
 const REQUIRED_FILES = ['index.html', 'manifest.json', 'favicon.ico', 'og-image.png'];
 const EXPECTED_MARKERS = ['AK-CHAT'];
+
+/**
+ * Every one of these must survive bundling with a real value. CRA replaces
+ * `process.env.REACT_APP_FOO` at build time, so an unset variable shows up in
+ * the bundle as the literal name with an empty string.
+ */
+const REQUIRED_CONFIG_VARS = [
+  'REACT_APP_FIREBASE_API_KEY',
+  'REACT_APP_FIREBASE_AUTH_DOMAIN',
+  'REACT_APP_FIREBASE_PROJECT_ID',
+  'REACT_APP_FIREBASE_STORAGE_BUCKET',
+  'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+  'REACT_APP_FIREBASE_APP_ID',
+];
 
 const errors = [];
 
@@ -77,6 +97,23 @@ if (fs.existsSync(htmlPath)) {
             `Main bundle does not contain the marker "${marker}" — the app may not have compiled.`
           );
         }
+      }
+
+      // The app reads these via process.env and refuses to start when any is
+      // empty. An unset var compiles to `NAME:""`, which is exactly how a
+      // missing-secret build reaches production.
+      const missingConfig = REQUIRED_CONFIG_VARS.filter(
+        (name) => !new RegExp(`${name}:"[^"]+"`).test(source)
+      );
+      if (missingConfig.length > 0) {
+        fail(
+          `Firebase config was not injected into the bundle for: ${missingConfig.join(', ')}. ` +
+            'The app would render "Missing Firebase configuration" instead of the chat. ' +
+            'Locally: is .env present with these keys? In CI: are the matching GitHub secrets set ' +
+            '(gh secret list)?'
+        );
+      } else {
+        console.log(`• firebase config injected: ${REQUIRED_CONFIG_VARS.length} vars`);
       }
     }
   }
