@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import type { FirebaseError } from 'firebase/app';
 import { getFirebaseAuth } from '../firebase/config';
+import { useT, type en } from '../i18n';
 import { GoogleIcon, LogoMark } from './icons';
 
 const POPUP_CLOSED_CODE = 'auth/popup-closed-by-user';
@@ -11,9 +12,9 @@ interface SignInError {
 }
 
 /** Maps FirebaseAuth errors to friendly, human-readable messages. */
-function friendlyError(error: unknown): SignInError | null {
+function friendlyError(error: unknown, t: typeof en): SignInError | null {
   if (!(error instanceof Error)) {
-    return { message: 'Something went wrong during sign-in.' };
+    return { message: t.somethingWentWrongSignIn };
   }
 
   const code = (error as FirebaseError).code;
@@ -24,37 +25,34 @@ function friendlyError(error: unknown): SignInError | null {
   }
 
   if (code === 'auth/popup-blocked') {
-    return {
-      message: 'The sign-in popup was blocked by your browser. Allow popups and try again.',
-    };
+    return { message: t.popupBlocked };
   }
 
   if (code === 'auth/account-exists-with-different-credential') {
-    return {
-      message: 'An account with this email already exists using a different sign-in method.',
-    };
+    return { message: t.emailAccountExistsDifferent };
   }
 
   if (code === 'auth/network-request-failed') {
-    return { message: 'Network problem. Check your connection and try again.' };
+    return { message: t.networkProblem };
   }
 
   if (code === 'auth/too-many-requests') {
-    return { message: 'Too many attempts. Wait a moment and try again.' };
+    return { message: t.tooManyAttempts };
   }
 
   return { message: error.message };
 }
 
-const FEATURES = [
-  { title: 'Real-time', text: 'Messages appear instantly for everyone in the room.' },
-  { title: 'Reactions & replies', text: 'React with emoji and quote messages you care about.' },
-  { title: 'Your data, your rules', text: 'Edit or delete anything you post, any time.' },
-];
-
 export default function SignIn() {
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<SignInError | null>(null);
+  const t = useT();
+
+  const features = [
+    { title: t.realTimeTitle, text: t.realTimeText },
+    { title: t.reactionsRepliesTitle, text: t.reactionsRepliesText },
+    { title: t.yourDataTitle, text: t.yourDataText },
+  ];
 
   async function handleSignIn() {
     setSigningIn(true);
@@ -62,24 +60,21 @@ export default function SignIn() {
     try {
       await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
     } catch (err) {
-      setError(friendlyError(err));
+      setError(friendlyError(err, t));
     } finally {
       setSigningIn(false);
     }
   }
 
   return (
-    <section className="signin" aria-label="Sign in to AK-CHAT">
+    <section className="signin" aria-label={t.signInTitle}>
       <div className="signin__card">
         <span className="signin__logo">
           <LogoMark size={44} />
         </span>
 
-        <h2 className="signin__title">Welcome to AK-CHAT</h2>
-        <p className="signin__intro">
-          A real-time community chat for AK01REDWAN followers and friends. Join the conversation,
-          share updates, and stay connected.
-        </p>
+        <h2 className="signin__title">{t.welcomeTo}</h2>
+        <p className="signin__intro">{t.welcomeIntro}</p>
 
         <button
           className="btn btn--google"
@@ -88,7 +83,7 @@ export default function SignIn() {
           disabled={signingIn}
         >
           <GoogleIcon size={20} />
-          {signingIn ? 'Signing in…' : 'Continue with Google'}
+          {signingIn ? t.signingIn : t.continueWithGoogle}
         </button>
 
         {error && (
@@ -98,7 +93,7 @@ export default function SignIn() {
         )}
 
         <ul className="signin__features">
-          {FEATURES.map((feature) => (
+          {features.map((feature) => (
             <li className="signin__feature" key={feature.title}>
               <strong>{feature.title}</strong>
               <span>{feature.text}</span>
@@ -107,15 +102,13 @@ export default function SignIn() {
         </ul>
 
         <div className="signin__rules">
-          <h3 className="signin__rules-title">Community guidelines</h3>
+          <h3 className="signin__rules-title">{t.communityGuidelines}</h3>
           <ul className="signin__rules-list">
-            <li>Treat others kindly and avoid abusive language.</li>
-            <li>Stick to the topic of AK01REDWAN's news and updates.</li>
-            <li>Report any violations to moderators.</li>
+            <li>{t.cocPoint1}</li>
+            <li>{t.cocPoint2}</li>
+            <li>{t.cocPoint3}</li>
           </ul>
-          <p className="signin__disclaimer">
-            Failure to follow these guidelines may result in warnings, suspension, or a ban.
-          </p>
+          <p className="signin__disclaimer">{t.cocDisclaimer}</p>
         </div>
       </div>
     </section>

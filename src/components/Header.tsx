@@ -1,5 +1,7 @@
 import type { User } from 'firebase/auth';
 import { usePresence } from '../hooks/usePresence';
+import { useT } from '../i18n';
+import LocaleToggle from './LocaleToggle';
 import OnlineCount from './OnlineCount';
 import SignOut from './SignOut';
 import ThemeToggle from './ThemeToggle';
@@ -11,6 +13,7 @@ interface HeaderProps {
 
 export default function Header({ user }: HeaderProps) {
   const { onlineCount, ready } = usePresence(user ?? null);
+  const t = useT();
 
   return (
     <header className="header">
@@ -20,7 +23,7 @@ export default function Header({ user }: HeaderProps) {
         </span>
         <div className="header__titles">
           <h1 className="header__title">AK-CHAT</h1>
-          <span className="header__subtitle">Community group chat</span>
+          <span className="header__subtitle">{t.communityChat}</span>
         </div>
       </div>
 
@@ -28,13 +31,14 @@ export default function Header({ user }: HeaderProps) {
         {user ? (
           <OnlineCount count={onlineCount} ready={ready} />
         ) : (
-          <span className="header__guest">Guest</span>
+          <span className="header__guest">{t.guest}</span>
         )}
+        <LocaleToggle />
         <ThemeToggle />
         {user && (
           <div className="header__user">
             <span className="header__greeting">
-              {user.displayName ? `Hi, ${user.displayName.split(' ')[0]}` : 'Hi, there'}
+              {user.displayName ? t.hi(user.displayName.split(' ')[0]) : t.hiThere}
             </span>
             <SignOut />
           </div>

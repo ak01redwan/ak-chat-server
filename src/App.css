@@ -385,7 +385,7 @@
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   width: 100%;
-  text-align: left;
+  text-align: start;
 }
 
 .signin__features {
@@ -395,7 +395,7 @@
   display: grid;
   gap: 10px;
   width: 100%;
-  text-align: left;
+  text-align: start;
 }
 
 .signin__feature {
@@ -423,7 +423,7 @@
   margin-top: 22px;
   padding-top: 18px;
   border-top: 1px solid var(--color-border);
-  text-align: left;
+  text-align: start;
   width: 100%;
 }
 
@@ -437,7 +437,7 @@
 
 .signin__rules-list {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   line-height: 1.7;
@@ -701,7 +701,7 @@
   gap: 8px;
   max-width: 100%;
   padding: 6px 12px;
-  border-left: 3px solid var(--color-secondary);
+  border-inline-start: 3px solid var(--color-secondary);
   border-radius: var(--radius-sm);
   background: var(--color-secondary-soft);
   font-size: 0.76rem;
@@ -775,7 +775,9 @@
   padding: 2px 4px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-bg-elevated) 70%, transparent);
-  opacity: 0.35;
+  /* Reply and reactions are core features: a ghosted row reads as "this message
+     has no actions" on a laptop screen, so keep it legible by default. */
+  opacity: 0.85;
   transition: opacity var(--duration-fast) var(--ease-out);
 }
 
@@ -792,8 +794,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -803,20 +805,28 @@
     color var(--duration-fast) var(--ease-out);
 }
 
-.message__action:hover {
+.message__action:hover,
+.message__action:focus-visible {
   background: var(--color-surface-hover);
   color: var(--color-text);
 }
 
-.message__action--danger:hover {
+.message__action--danger:hover,
+.message__action--danger:focus-visible {
   background: var(--color-danger-bg);
   color: var(--color-danger);
 }
 
-/* Touch devices have no hover: keep actions always visible. */
+/* Touch devices have no hover, so the controls must be legible and large
+   enough to hit reliably (WCAG 2.5.5 target size). */
 @media (hover: none) {
   .message__actions {
-    opacity: 0.9;
+    opacity: 1;
+  }
+
+  .message__action {
+    width: 40px;
+    height: 40px;
   }
 }
 
@@ -896,7 +906,7 @@
 .reactions__menu {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 0;
+  inset-inline-start: 0;
   z-index: 2;
   display: flex;
   gap: 2px;
@@ -1060,7 +1070,7 @@
   align-items: center;
   gap: 10px;
   padding: 7px 10px;
-  border-left: 3px solid var(--color-secondary);
+  border-inline-start: 3px solid var(--color-secondary);
   border-radius: var(--radius-sm);
   background: var(--color-secondary-soft);
   animation: rise-in var(--duration-fast) var(--ease-out);
@@ -1351,7 +1361,7 @@
 
 .modal--compact {
   max-width: 400px;
-  text-align: left;
+  text-align: start;
 }
 
 .modal--compact .modal__title {
@@ -1379,11 +1389,11 @@
   color: var(--color-text-muted);
   font-size: 0.9rem;
   line-height: 1.7;
-  text-align: left;
+  text-align: start;
 }
 
 .modal__body ul {
-  padding-left: 18px;
+  padding-inline-start: 18px;
   margin: 8px 0;
 }
 
@@ -1489,4 +1499,33 @@
     background: #fff;
     color: #000;
   }
+}
+
+/* ========================================================================== */
+/*  RTL (Arabic)                                                              */
+/*                                                                           */
+/*  `dir="rtl"` on <html> mirrors the layout already, because the layout uses */
+/*  flexbox and logical properties (inline-start/end, padding-inline). The   */
+/*  rules below only correct the few spots that genuinely need direction.    */
+/* ========================================================================== */
+
+[dir='rtl'] body {
+  /* Prefer a font with real Arabic shaping, falling back to the UI stack. */
+  font-family: 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+}
+
+[dir='rtl'] .message__meta {
+  flex-direction: row-reverse;
+}
+
+[dir='rtl'] .chat__replying {
+  flex-direction: row;
+}
+
+/* Arabic numerals stay left-to-right inside otherwise right-aligned text. */
+[dir='rtl'] .chat__counter,
+[dir='rtl'] .message__time,
+[dir='rtl'] .chat__search-count {
+  direction: ltr;
+  unicode-bidi: isolate;
 }

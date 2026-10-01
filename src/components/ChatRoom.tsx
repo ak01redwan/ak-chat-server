@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { User } from 'firebase/auth';
 import { deleteMessage, editMessage, sendMessage, setMessageReactions } from '../firebase/messages';
 import { useMessages } from '../hooks/useMessages';
+import { useT } from '../i18n';
 import {
   formatDayLabel,
   isSameDay,
@@ -26,6 +27,7 @@ const QUICK_EMOJIS = ['😊', '😂', '❤️', '👍', '🔥'];
 
 export default function ChatRoom({ user }: ChatRoomProps) {
   const { messages, loading, loadingOlder, error, hasMore, loadOlder } = useMessages();
+  const t = useT();
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -69,7 +71,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
 
     const result = validateMessage(draft);
     if (!result.valid) {
-      setSendError(result.error ?? 'Message is invalid.');
+      setSendError(result.error ?? t.failedToSend);
       return;
     }
 
@@ -81,7 +83,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
       setReplyTo(null);
       pinnedToBottomRef.current = true;
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : 'Failed to send message.');
+      setSendError(err instanceof Error ? err.message : t.failedToSend);
     } finally {
       setSending(false);
     }
@@ -93,7 +95,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
     try {
       await setMessageReactions(id, toggleReaction(target.reactions, emoji, user.uid));
     } catch (err) {
-      setRowError(err instanceof Error ? err.message : 'Failed to update reaction.');
+      setRowError(err instanceof Error ? err.message : t.failedToUpdateReaction);
       window.setTimeout(() => setRowError(null), 3000);
     }
   }
@@ -123,7 +125,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
     try {
       await deleteMessage(id);
     } catch (err) {
-      setRowError(err instanceof Error ? err.message : 'Failed to delete the message.');
+      setRowError(err instanceof Error ? err.message : t.failedToDelete);
       window.setTimeout(() => setRowError(null), 3000);
     }
   }
@@ -131,13 +133,13 @@ export default function ChatRoom({ user }: ChatRoomProps) {
   const resultCount = searchOpen && query.trim() ? visibleMessages.length : null;
 
   return (
-    <section className="chat" aria-label="Community chat">
+    <section className="chat" aria-label={t.communityChat}>
       <div className="chat__toolbar">
         <div className="chat__toolbar-info">
-          <h2 className="chat__title">Community chat</h2>
+          <h2 className="chat__title">{t.communityChat}</h2>
           {resultCount !== null && (
             <span className="chat__search-count" role="status">
-              {resultCount} {resultCount === 1 ? 'result' : 'results'}
+              {resultCount} {resultCount === 1 ? t.results_one : t.results_other}
             </span>
           )}
         </div>
@@ -149,8 +151,9 @@ export default function ChatRoom({ user }: ChatRoomProps) {
               className="chat__search-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search messages…"
-              aria-label="Search messages"
+              placeholder={t.searchMessages}
+              aria-label={t.searchMessages}
+              data-testid="chat-search-input"
               autoFocus
             />
             <button
@@ -160,7 +163,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
                 setQuery('');
                 setSearchOpen(false);
               }}
-              aria-label="Close search"
+              aria-label={t.closeSearch}
             >
               <CloseIcon size={14} />
             </button>
@@ -170,10 +173,10 @@ export default function ChatRoom({ user }: ChatRoomProps) {
             type="button"
             className="btn btn--ghost btn--sm"
             onClick={() => setSearchOpen(true)}
-            aria-label="Search messages"
+            aria-label={t.search}
           >
             <SearchIcon size={15} />
-            <span className="btn__label">Search</span>
+            <span className="btn__label">{t.search}</span>
           </button>
         )}
       </div>
@@ -193,7 +196,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
             }}
             disabled={loadingOlder}
           >
-            {loadingOlder ? 'Loading…' : 'Load earlier messages'}
+            {loadingOlder ? t.loading : t.loadEarlierMessages}
           </button>
         )}
 
@@ -202,13 +205,13 @@ export default function ChatRoom({ user }: ChatRoomProps) {
 
         {loading ? (
           <div role="status" aria-busy="true">
-            <span className="sr-only">Loading messages.</span>
+            <span className="sr-only">{t.loadingMessagesSr}</span>
             <SkeletonChat />
           </div>
         ) : resultCount === 0 ? (
           <div className="state">
-            <h2 className="state__title">No matches</h2>
-            <p className="state__text">Nothing found for “{query.trim()}”.</p>
+            <h2 className="state__title">{t.noMatches}</h2>
+            <p className="state__text">{t.nothingFoundFor(query.trim())}</p>
           </div>
         ) : visibleMessages.length === 0 ? (
           <EmptyState />
@@ -219,7 +222,12 @@ export default function ChatRoom({ user }: ChatRoomProps) {
             return (
               <div key={message.id}>
                 {showDay && message.createdAt && (
-                  <DaySeparator label={formatDayLabel(message.createdAt)} />
+                  <DaySeparator
+                    label={formatDayLabel(message.createdAt, {
+                      today: t.today,
+                      yesterday: t.yesterday,
+                    })}
+                  />
                 )}
                 <ChatMessage
                   message={message}
@@ -243,14 +251,14 @@ export default function ChatRoom({ user }: ChatRoomProps) {
         {replyTo && (
           <div className="chat__replying">
             <div className="chat__replying-text">
-              <strong>Replying to {replyTo.displayName || 'Anonymous'}</strong>
+              <strong>{t.replyingTo(replyTo.displayName || t.anonymous)}</strong>
               <span>{replyPreview(replyTo.text, 80)}</span>
             </div>
             <button
               type="button"
               className="chat__replying-cancel"
               onClick={() => setReplyTo(null)}
-              aria-label="Cancel reply"
+              aria-label={t.cancelReply}
             >
               <CloseIcon size={14} />
             </button>
@@ -263,14 +271,14 @@ export default function ChatRoom({ user }: ChatRoomProps) {
           </div>
         )}
 
-        <div className="chat__quick" aria-label="Quick emoji">
+        <div className="chat__quick" aria-label={t.quickEmoji}>
           {QUICK_EMOJIS.map((emoji) => (
             <button
               key={emoji}
               type="button"
               className="chat__quick-btn"
               onClick={() => setDraft((d) => (d + emoji).slice(0, MAX_MESSAGE_LENGTH))}
-              aria-label={`Insert ${emoji}`}
+              aria-label={t.insertEmoji(emoji)}
             >
               {emoji}
             </button>
@@ -285,9 +293,9 @@ export default function ChatRoom({ user }: ChatRoomProps) {
               setDraft(event.target.value);
               setSendError(null);
             }}
-            placeholder="Write a message…"
+            placeholder={t.writeMessage}
             maxLength={MAX_MESSAGE_LENGTH}
-            aria-label="Message"
+            aria-label={t.message}
             autoComplete="off"
             enterKeyHint="send"
           />
@@ -295,7 +303,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
             className="chat__send"
             type="submit"
             disabled={sending || !draft.trim()}
-            aria-label="Send message"
+            aria-label={t.sendMessage}
           >
             {sending ? (
               <span className="chat__send-spinner" aria-hidden="true" />
@@ -306,7 +314,7 @@ export default function ChatRoom({ user }: ChatRoomProps) {
         </div>
 
         <div className="chat__meta">
-          <span className="chat__hint">Enter to send</span>
+          <span className="chat__hint">{t.enterToSend}</span>
           <span className="chat__counter" aria-hidden="true">
             {draft.length}/{MAX_MESSAGE_LENGTH}
           </span>
@@ -315,8 +323,8 @@ export default function ChatRoom({ user }: ChatRoomProps) {
 
       {pendingDelete && (
         <ConfirmationModal
-          title="Delete this message?"
-          body="This permanently removes the message for everyone in the chat. This cannot be undone."
+          title={t.deleteThisMessage}
+          body={t.deleteMessageBody}
           onConfirm={() => void confirmDelete()}
           onCancel={() => setPendingDelete(null)}
         />

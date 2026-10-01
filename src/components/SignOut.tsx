@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '../firebase/config';
+import { useT } from '../i18n';
 import { SignOutIcon } from './icons';
 
 export default function SignOut() {
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -13,7 +15,7 @@ export default function SignOut() {
     try {
       await signOut(getFirebaseAuth());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign out failed.');
+      setError(err instanceof Error ? err.message : t.signOutFailed);
       setSigningOut(false);
     }
   }
@@ -32,7 +34,7 @@ export default function SignOut() {
         disabled={signingOut}
       >
         <SignOutIcon size={16} />
-        {signingOut ? 'Signing out…' : 'Sign out'}
+        {signingOut ? t.signingOut : t.signOut}
       </button>
     </div>
   );

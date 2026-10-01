@@ -84,6 +84,8 @@ export function useMessages(pageSize: number = MESSAGE_PAGE_SIZE): UseMessagesRe
   const pageSizeRef = useRef(pageSize);
   const oldestCursorRef = useRef<DocumentSnapshot | null>(null);
   const initialCursorRef = useRef<DocumentSnapshot | null>(null);
+  const paginatedRef = useRef(false);
+  const exhaustedRef = useRef(false);
 
   useEffect(() => {
     pageSizeRef.current = pageSize;
@@ -104,7 +106,8 @@ export function useMessages(pageSize: number = MESSAGE_PAGE_SIZE): UseMessagesRe
           initialCursorRef.current = docs[docs.length - 1];
         }
 
-        setHasMore(docs.length === pageSize);
+        const pageFull = docs.length === pageSize;
+        setHasMore(pageFull && !exhaustedRef.current);
         setLoading(false);
         setError(null);
       },
@@ -118,15 +121,22 @@ export function useMessages(pageSize: number = MESSAGE_PAGE_SIZE): UseMessagesRe
       unsubscribe();
       initialCursorRef.current = null;
       oldestCursorRef.current = null;
+      paginatedRef.current = false;
+      exhaustedRef.current = false;
     };
   }, [pageSize]);
 
   const loadOlder = useCallback(async () => {
-    if (!hasMore || loadingOlder) return;
+    if (!hasMore || loadingOlder || exhaustedRef.current) return;
 
     const cursor = oldestCursorRef.current ?? initialCursorRef.current;
-    if (!cursor) return;
+    if (!cursor) {
+      exhaustedRef.current = true;
+      setHasMore(false);
+      return;
+    }
 
+    paginatedRef.current = true;
     setLoadingOlder(true);
     setError(null);
     try {
@@ -139,9 +149,21 @@ export function useMessages(pageSize: number = MESSAGE_PAGE_SIZE): UseMessagesRe
       const snapshot = await getDocs(q);
       const docs = snapshot.docs;
 
-      setOlder((previous) => [...previous, ...docs.map(mapDocument)]);
-      oldestCursorRef.current = docs.length > 0 ? docs[docs.length - 1] : null;
-      setHasMore(docs.length === pageSizeRef.current);
+      // A short page means we reached the start of the room's history. Remember
+      // that so later live snapshots cannot flip `hasMore` back on and make the
+      // reader page through an exhausted history with a stale cursor.
+      const more = docs.length === pageSizeRef.current;
+      if (more) {
+        oldestCursorRef.current = docs[docs.length - 1];
+      } else {
+        exhaustedRef.current = true;
+        oldestCursorRef.current = null;
+      }
+
+      if (docs.length > 0) {
+        setOlder((previous) => [...previous, ...docs.map(mapDocument)]);
+      }
+      setHasMore(more);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load earlier messages.');
     } finally {

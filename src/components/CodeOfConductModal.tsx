@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useT } from '../i18n';
 import { LogoMark } from './icons';
 
 interface CodeOfConductModalProps {
@@ -7,6 +8,7 @@ interface CodeOfConductModalProps {
 
 export default function CodeOfConductModal({ onAccept }: CodeOfConductModalProps) {
   const acceptButtonRef = useRef<HTMLButtonElement>(null);
+  const t = useT();
 
   useEffect(() => {
     acceptButtonRef.current?.focus();
@@ -40,26 +42,21 @@ export default function CodeOfConductModal({ onAccept }: CodeOfConductModalProps
           <LogoMark size={32} />
         </span>
         <h2 id="coc-title" className="modal__title">
-          Community guidelines
+          {t.communityGuidelines}
         </h2>
 
         <div id="coc-body" className="modal__body">
-          <p>
-            AK-CHAT welcomes everyone to chat and share updates. Respectful behavior is expected:
-          </p>
+          <p>{t.cocIntro}</p>
           <ul>
-            <li>Treat others kindly and avoid abusive language.</li>
-            <li>Stick to the topic of AK01REDWAN's news and updates.</li>
-            <li>Report any violations to moderators.</li>
+            <li>{t.cocPoint1}</li>
+            <li>{t.cocPoint2}</li>
+            <li>{t.cocPoint3}</li>
           </ul>
-          <p>
-            Failure to follow these guidelines may result in warnings, suspension, or a ban. Enjoy
-            your time in the chat!
-          </p>
+          <p>{t.cocOutro}</p>
         </div>
 
         <button ref={acceptButtonRef} className="btn btn--primary" type="button" onClick={onAccept}>
-          I agree
+          {t.iAgree}
         </button>
       </div>
     </div>

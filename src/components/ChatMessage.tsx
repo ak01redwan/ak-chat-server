@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import type { ChatMessage as ChatMessageModel } from '../types/message';
+import { useT } from '../i18n';
 import {
   formatMessageDate,
   formatMessageTime,
@@ -52,11 +53,12 @@ function ChatMessage({
   const [draft, setDraft] = useState(message.text);
   const [editError, setEditError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const t = useT();
 
   const photoURL = sanitizePhotoURL(message.photoURL);
   const showImage = Boolean(photoURL) && !imageFailed;
   const replyTo = sanitizeReplyTo(message.replyTo);
-  const author = message.displayName || 'Anonymous';
+  const author = message.displayName || t.anonymous;
 
   function startEditing() {
     setDraft(message.text);
@@ -68,7 +70,7 @@ function ChatMessage({
     if (!onEdit) return;
     const result = validateMessage(draft);
     if (!result.valid) {
-      setEditError(result.error ?? 'Message is invalid.');
+      setEditError(result.error ?? t.failedToUpdateMessage);
       return;
     }
     if ((result.value as string) === message.text) {
@@ -82,7 +84,7 @@ function ChatMessage({
       await onEdit(message.id, result.value as string);
       setIsEditing(false);
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to update the message.');
+      setEditError(err instanceof Error ? err.message : t.failedToUpdateMessage);
     } finally {
       setIsSaving(false);
     }
@@ -97,14 +99,16 @@ function ChatMessage({
             className="message__time"
             data-testid="message-time"
             dateTime={message.createdAt.toDate().toISOString()}
-            title={`${formatMessageDate(message.createdAt)} ${formatMessageTime(
-              message.createdAt
-            )} • ${formatTimeAgo(message.createdAt)}`}
+            title={t.messageTimeTitle(
+              formatMessageDate(message.createdAt),
+              formatMessageTime(message.createdAt),
+              formatTimeAgo(message.createdAt)
+            )}
           >
             {formatTimeAgo(message.createdAt)}
           </time>
         )}
-        {message.pending && <span className="message__pending">Sending…</span>}
+        {message.pending && <span className="message__pending">{t.sendingDots}</span>}
       </div>
 
       {isEditing ? (
@@ -114,7 +118,7 @@ function ChatMessage({
             value={draft}
             autoFocus
             maxLength={MAX_MESSAGE_LENGTH}
-            aria-label={`Edit your message from ${author}`}
+            aria-label={t.editMessageFrom(author)}
             onChange={(e) => {
               setDraft(e.target.value);
               setEditError(null);
@@ -139,7 +143,7 @@ function ChatMessage({
               onClick={() => setIsEditing(false)}
               disabled={isSaving}
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -147,7 +151,7 @@ function ChatMessage({
               onClick={() => void saveEdit()}
               disabled={isSaving}
             >
-              {isSaving ? 'Saving…' : 'Save'}
+              {isSaving ? t.saving : t.save}
             </button>
           </div>
         </div>
@@ -171,7 +175,7 @@ function ChatMessage({
     <article
       className={`message ${isOwn ? 'message--own' : 'message--other'}`}
       data-testid={isOwn ? 'message-own' : 'message-other'}
-      aria-label={`Message from ${author}`}
+      aria-label={`${t.message} ${t.by} ${author}`}
     >
       <div className="message__avatar" aria-hidden="true">
         {showImage ? (
@@ -195,7 +199,7 @@ function ChatMessage({
       <div className="message__column">
         {replyTo && (
           <div className="message__reply-quote" data-testid="message-reply-quote">
-            <span className="message__reply-author">{replyTo.displayName || 'Anonymous'}</span>
+            <span className="message__reply-author">{replyTo.displayName || t.anonymous}</span>
             <span className="message__reply-text">{replyPreview(replyTo.text, 90)}</span>
           </div>
         )}

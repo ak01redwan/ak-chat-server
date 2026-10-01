@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
 
+// Pin the locale for every test so assertions on English copy are deterministic
+// regardless of the developer's own browser language or a previous test's choice.
+beforeEach(() => {
+  window.localStorage.setItem('ak-chat:locale', 'en');
+});
+
 // Provide a valid-but-fake Firebase web config so components can initialize the
 // Firebase SDK in tests. Real network calls are never made: every Firebase module
 // or hook that touches the network is mocked at the module level in each test file.

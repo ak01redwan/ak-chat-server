@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '../i18n';
 import { CopyIcon, EditIcon, ReplyIcon, TrashIcon } from './icons';
 
 interface MessageActionsProps {
@@ -17,6 +18,7 @@ export default function MessageActions({
   onDelete,
 }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
+  const t = useT();
 
   function handleCopy() {
     onCopy();
@@ -30,8 +32,8 @@ export default function MessageActions({
         type="button"
         className="message__action"
         onClick={handleCopy}
-        aria-label={copied ? 'Copied' : 'Copy message'}
-        title={copied ? 'Copied' : 'Copy'}
+        aria-label={copied ? t.copied : t.copyMessage}
+        title={copied ? t.copiedTooltip : t.copy}
       >
         <CopyIcon size={14} />
       </button>
@@ -40,8 +42,8 @@ export default function MessageActions({
         type="button"
         className="message__action"
         onClick={onReply}
-        aria-label="Reply to this message"
-        title="Reply"
+        aria-label={t.replyToMessage}
+        title={t.reply}
       >
         <ReplyIcon size={14} />
       </button>
@@ -52,8 +54,8 @@ export default function MessageActions({
             type="button"
             className="message__action"
             onClick={onEdit}
-            aria-label="Edit your message"
-            title="Edit"
+            aria-label={t.editYourMessage}
+            title={t.edit}
           >
             <EditIcon size={14} />
           </button>
@@ -61,8 +63,8 @@ export default function MessageActions({
             type="button"
             className="message__action message__action--danger"
             onClick={onDelete}
-            aria-label="Delete your message"
-            title="Delete"
+            aria-label={t.deleteYourMessage}
+            title={t.delete}
           >
             <TrashIcon size={14} />
           </button>

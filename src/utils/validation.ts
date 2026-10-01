@@ -174,14 +174,17 @@ export function isSameDay(a: Timestamp | null, b: Timestamp | null): boolean {
 }
 
 /** Labels a message timestamp as "Today", "Yesterday", or the full date. */
-export function formatDayLabel(createdAt: Timestamp): string {
+export function formatDayLabel(
+  createdAt: Timestamp,
+  t?: { today: string; yesterday: string }
+): string {
   const date = createdAt.toDate();
   const now = new Date();
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const diffDays = Math.round((startOf(now) - startOf(date)) / 86_400_000);
 
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
+  if (diffDays === 0) return t?.today ?? 'Today';
+  if (diffDays === 1) return t?.yesterday ?? 'Yesterday';
 
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString([], {

@@ -41,6 +41,8 @@ describe('SignIn', () => {
     mockSignInWithPopup.mockRejectedValue(new Error('auth/network-request-failed'));
 
     render(<SignIn />);
+    // The rejected popup promise sets the error on a later microtask, so the
+    // click must settle inside act() to avoid an update-outside-act warning.
     await act(async () => {
       await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
     });

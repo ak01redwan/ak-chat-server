@@ -157,6 +157,43 @@ describe('useMessages', () => {
     expect(getDocs).toHaveBeenCalledTimes(1);
   });
 
+  it('does not resurrect hasMore when a new message arrives after history is exhausted', async () => {
+    const { result } = renderHook(() => useMessages(2));
+
+    emitSnapshot({ docs: makeDocs(2, 0) });
+    expect(result.current.hasMore).toBe(true);
+
+    getDocs.mockResolvedValueOnce({ docs: [] });
+    await act(async () => {
+      await result.current.loadOlder();
+    });
+    expect(result.current.hasMore).toBe(false);
+
+    // A new message arrives, so the live page is full again.
+    emitSnapshot({ docs: makeDocs(2, 1) });
+
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('never re-queries an exhausted history with a stale cursor', async () => {
+    const { result } = renderHook(() => useMessages(2));
+
+    emitSnapshot({ docs: makeDocs(2, 0) });
+    getDocs.mockResolvedValueOnce({ docs: [] });
+    await act(async () => {
+      await result.current.loadOlder();
+    });
+    expect(getDocs).toHaveBeenCalledTimes(1);
+
+    emitSnapshot({ docs: makeDocs(2, 1) });
+    await act(async () => {
+      await result.current.loadOlder();
+    });
+
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(result.current.hasMore).toBe(false);
+  });
+
   it('does nothing when loadOlder is called without a cursor', async () => {
     const { result } = renderHook(() => useMessages());
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MessageReactions } from '../types/message';
+import { useT } from '../i18n';
 import { hasReacted, reactionCount, REACTION_EMOJIS } from '../utils/validation';
 import { PlusIcon } from './icons';
 
@@ -17,6 +18,7 @@ export default function ReactionsBar({
   disabled = false,
 }: ReactionsBarProps) {
   const [picking, setPicking] = useState(false);
+  const t = useT();
 
   const active = REACTION_EMOJIS.filter(
     (emoji) => reactionCount(reactions, emoji) > 0 || hasReacted(reactions, emoji, currentUserId)
@@ -36,10 +38,10 @@ export default function ReactionsBar({
             onClick={() => onToggle(emoji)}
             disabled={disabled}
             aria-pressed={mine}
-            aria-label={`${emoji} reaction, ${count} ${count === 1 ? 'person' : 'people'}${
-              mine ? ', you reacted' : ''
-            }`}
-            title={mine ? `Remove your ${emoji}` : `React with ${emoji}`}
+            aria-label={`${emoji} reaction, ${count} ${
+              count === 1 ? t.people_one : t.people_other
+            }${mine ? t.youReacted : ''}`}
+            title={mine ? t.removeYourReaction(emoji) : t.reactWith(emoji)}
           >
             <span className="reaction__emoji">{emoji}</span>
             {count > 0 && <span className="reaction__count">{count}</span>}
@@ -54,8 +56,8 @@ export default function ReactionsBar({
             className="reaction reaction--add"
             onClick={() => setPicking((p) => !p)}
             aria-expanded={picking}
-            aria-label="Add a reaction"
-            title="Add a reaction"
+            aria-label={t.addReaction}
+            title={t.addReaction}
           >
             <PlusIcon size={12} />
           </button>
@@ -66,7 +68,7 @@ export default function ReactionsBar({
                 role="presentation"
                 onClick={() => setPicking(false)}
               />
-              <div className="reactions__menu" role="group" aria-label="Choose an emoji">
+              <div className="reactions__menu" role="group" aria-label={t.chooseEmoji}>
                 {remaining.map((emoji) => (
                   <button
                     key={emoji}
@@ -76,7 +78,7 @@ export default function ReactionsBar({
                       onToggle(emoji);
                       setPicking(false);
                     }}
-                    aria-label={`React with ${emoji}`}
+                    aria-label={t.reactWith(emoji)}
                   >
                     {emoji}
                   </button>

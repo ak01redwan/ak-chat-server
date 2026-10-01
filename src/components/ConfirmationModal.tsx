@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useT } from '../i18n';
 
 interface ConfirmationModalProps {
   title: string;
@@ -12,12 +13,13 @@ interface ConfirmationModalProps {
 export default function ConfirmationModal({
   title,
   body,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: ConfirmationModalProps) {
   const firstRef = useRef<HTMLButtonElement>(null);
+  const t = useT();
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -46,10 +48,10 @@ export default function ConfirmationModal({
         </p>
         <div className="modal__actions">
           <button ref={firstRef} className="btn btn--ghost" type="button" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t.cancel}
           </button>
           <button className="btn btn--danger" type="button" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel ?? t.delete}
           </button>
         </div>
       </div>

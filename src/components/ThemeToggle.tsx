@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useT } from '../i18n';
 import { useTheme } from '../context/ThemeContext';
 import { MoonIcon, SunIcon } from './icons';
 
 export default function ThemeToggle() {
   const { theme, cycleTheme } = useTheme();
-  const [label, setLabel] = useState<string>();
+  const t = useT();
 
-  useEffect(() => {
-    setLabel(theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
-  }, [theme]);
+  const label = theme === 'dark' ? t.switchToLightTheme : t.switchToDarkTheme;
 
   return (
     <button

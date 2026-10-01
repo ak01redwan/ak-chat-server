@@ -22,6 +22,7 @@ const {
   setDoc,
   getDoc,
   getDocs,
+  addDoc,
   collection,
   updateDoc,
   deleteDoc,
@@ -288,6 +289,133 @@ describe('messages: update', () => {
 
   it('denies clearing the createdAt timestamp', async () => {
     await assertFails(updateDoc(msgRef('m1'), { createdAt: new Date() }));
+  });
+});
+
+/* ================================================================== *
+ * Realistic client round-trip
+ *
+ * Reproduces, byte for byte, the payloads src/firebase/messages.ts writes.
+ * The user reported being unable to reply to other people's messages, so the
+ * only trustworthy way to rule the rules out is to replay the real sequence:
+ * author posts, a DIFFERENT user replies, then reacts, edits and deletes.
+ * ================================================================== */
+describe('client round-trip: replying to another user', () => {
+  // A realistic Google avatar URL, which is long and query-heavy.
+  const GOOGLE_AVATAR =
+    'https://lh3.googleusercontent.com/a/ACg8ocSyHfzHhAo4mM3VhZbYtLZSdL1kF3sPz9xQ7vN2mR8wT5yJ0cE1uI6oP4aS9dF7gH2jK5lM8nB3vX6zQ0=/s96-c';
+
+  beforeEach(async () => {
+    await seed((firestore) =>
+      setDoc(doc(firestore, 'messages', 'm1'), {
+        text: 'Hello community, welcome!',
+        uid: AUTHOR,
+        displayName: 'Redwan',
+        photoURL: GOOGLE_AVATAR,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        replyTo: null,
+        reactions: {},
+      })
+    );
+  });
+
+  it('lets another user reply to a message they did not write', async () => {
+    // Exactly what sendMessage() builds when replyTo is set.
+    const replyTo = {
+      id: 'm1',
+      text: 'Hello community, welcome!',
+      displayName: 'Redwan',
+    };
+
+    await assertSucceeds(
+      addDoc(collection(db(OTHER), 'messages'), {
+        text: 'Thanks for the warm welcome!',
+        uid: OTHER,
+        displayName: 'Guest',
+        photoURL: GOOGLE_AVATAR,
+        createdAt: serverTimestamp(),
+        replyTo,
+        reactions: {},
+      })
+    );
+  });
+
+  it('lets another user reply when the quoted author has no display name', async () => {
+    await assertSucceeds(
+      addDoc(collection(db(OTHER), 'messages'), {
+        text: 'Replying to an anonymous message',
+        uid: OTHER,
+        displayName: null,
+        photoURL: null,
+        createdAt: serverTimestamp(),
+        replyTo: { id: 'm1', text: 'Hello community, welcome!', displayName: null },
+        reactions: {},
+      })
+    );
+  });
+
+  it('lets another user reply to a message that is itself a reply', async () => {
+    await seed((firestore) =>
+      setDoc(doc(firestore, 'messages', 'm2'), {
+        text: 'First reply',
+        uid: OTHER,
+        displayName: 'Guest',
+        photoURL: null,
+        createdAt: new Date('2026-01-01T00:05:00Z'),
+        replyTo: { id: 'm1', text: 'Hello community, welcome!', displayName: 'Redwan' },
+        reactions: {},
+      })
+    );
+
+    await assertSucceeds(
+      addDoc(collection(db(AUTHOR), 'messages'), {
+        text: 'Replying to the reply',
+        uid: AUTHOR,
+        displayName: 'Redwan',
+        photoURL: null,
+        createdAt: serverTimestamp(),
+        replyTo: { id: 'm2', text: 'First reply', displayName: 'Guest' },
+        reactions: {},
+      })
+    );
+  });
+
+  it('lets another user react, and the author then edit their own text', async () => {
+    await assertSucceeds(
+      updateDoc(doc(db(OTHER), 'messages', 'm1'), {
+        reactions: { [EMOJI.heart]: [OTHER], [EMOJI.thumbsUp]: [OTHER, AUTHOR] },
+      })
+    );
+    await assertSucceeds(updateDoc(msgRef('m1'), { text: 'Hello community, welcome all!' }));
+  });
+
+  it('accepts a maximal-length quoted message', async () => {
+    await assertSucceeds(
+      addDoc(collection(db(OTHER), 'messages'), {
+        text: 'ok',
+        uid: OTHER,
+        displayName: 'Guest',
+        photoURL: null,
+        createdAt: serverTimestamp(),
+        replyTo: { id: 'm1', text: 'a'.repeat(1000), displayName: 'Redwan' },
+        reactions: {},
+      })
+    );
+  });
+
+  it('accepts a realistic Google avatar on a new message', async () => {
+    await assertSucceeds(
+      addDoc(collection(db(OTHER), 'messages'), {
+        text: 'Avatar check',
+        uid: OTHER,
+        displayName: 'Guest',
+        photoURL: GOOGLE_AVATAR,
+        createdAt: serverTimestamp(),
+        replyTo: null,
+        reactions: {},
+      })
+    );
+    expect(GOOGLE_AVATAR.length).toBeLessThanOrEqual(512);
   });
 });
 

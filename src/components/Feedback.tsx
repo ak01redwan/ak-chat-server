@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../i18n';
 import { LogoMark, WifiOffIcon } from './icons';
 
 /** Generic loading state used while auth settles. */
 export function LoadingState() {
+  const t = useT();
   return (
     <div className="state" role="status">
       <div className="state__spinner" aria-hidden="true" />
-      <p>Connecting…</p>
+      <p>{t.connecting}</p>
     </div>
   );
 }
@@ -22,30 +24,29 @@ export function ErrorBanner({ message }: { message: string }) {
 
 /** Friendly empty state for a brand-new chat room. */
 export function EmptyState() {
+  const t = useT();
   return (
     <div className="state">
       <span className="state__mark">
         <LogoMark size={40} />
       </span>
-      <h2 className="state__title">No messages yet</h2>
-      <p className="state__text">Be the first to say hello!</p>
+      <h2 className="state__title">{t.noMessagesYet}</h2>
+      <p className="state__text">{t.noMessagesYetBody}</p>
     </div>
   );
 }
 
 /** Fatal configuration error shown when Firebase env vars are missing. */
 export function ConfigurationError({ message }: { message: string }) {
+  const t = useT();
   return (
     <div className="config-error">
       <span className="config-error__mark">
         <LogoMark size={48} />
       </span>
-      <h1 className="config-error__title">AK-CHAT can't start</h1>
+      <h1 className="config-error__title">{t.cannotStart}</h1>
       <p className="config-error__message">{message}</p>
-      <p className="config-error__hint">
-        Copy <code>.env.example</code> to <code>.env</code>, fill in your Firebase web app
-        credentials, then restart. See the deployment guide for details.
-      </p>
+      <p className="config-error__hint">{t.configHint('.env.example', '.env')}</p>
     </div>
   );
 }
@@ -56,6 +57,7 @@ export function ConfigurationError({ message }: { message: string }) {
  */
 export function OfflineBanner() {
   const [offline, setOffline] = useState(!navigator.onLine);
+  const t = useT();
 
   useEffect(() => {
     const goOffline = () => setOffline(true);
@@ -74,7 +76,7 @@ export function OfflineBanner() {
   return (
     <div className="offline-banner" role="status">
       <WifiOffIcon size={16} />
-      <span>You are offline — messages will send when the connection returns.</span>
+      <span>{t.offlineBanner}</span>
     </div>
   );
 }

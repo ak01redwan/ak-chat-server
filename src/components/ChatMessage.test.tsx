@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Timestamp } from 'firebase/firestore';
 import ChatMessage from './ChatMessage';
@@ -256,7 +256,10 @@ describe('ChatMessage', () => {
       const editor = screen.getByRole('textbox', { name: /Edit your message/ });
       await user.clear(editor);
       await user.type(editor, 'Nope');
-      await user.click(screen.getByRole('button', { name: 'Save' }));
+      // onEdit rejects asynchronously; the error state lands a microtask later.
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+      });
 
       expect(await screen.findByRole('alert')).toHaveTextContent('permission-denied');
       expect(screen.getByRole('textbox', { name: /Edit your message/ })).toBeInTheDocument();

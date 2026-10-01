@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { configError, getFirebaseAuth, isFirebaseConfigured } from './firebase/config';
+import { I18nProvider, useT } from './i18n';
 import { ThemeProvider } from './context/ThemeContext';
 import ChatRoom from './components/ChatRoom';
 import CodeOfConductModal from './components/CodeOfConductModal';
@@ -21,6 +22,7 @@ function ChatApplication() {
   const [codeOfConductAccepted, setCodeOfConductAccepted] = useState(
     () => sessionStorage.getItem(CODE_OF_CONDUCT_KEY) === 'accepted'
   );
+  const t = useT();
 
   function handleAcceptCodeOfConduct() {
     sessionStorage.setItem(CODE_OF_CONDUCT_KEY, 'accepted');
@@ -30,7 +32,7 @@ function ChatApplication() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
-        Skip to chat
+        {t.skipToChat}
       </a>
 
       <Header user={user} />
@@ -49,13 +51,13 @@ function ChatApplication() {
 
       <footer className="app-footer">
         <span>
-          AK-CHAT by{' '}
+          AK-CHAT {t.by}{' '}
           <a href="https://ak01redwan.is-a.dev/" target="_blank" rel="noreferrer noopener">
             AK01REDWAN
           </a>
         </span>
         <span aria-hidden="true">·</span>
-        <span>Be kind, stay on topic.</span>
+        <span>{t.beKind}</span>
       </footer>
     </div>
   );
@@ -69,14 +71,18 @@ export default function App() {
   if (!isFirebaseConfigured) {
     return (
       <ThemeProvider>
-        <ConfigurationError message={configError ?? 'Firebase is not configured.'} />
+        <I18nProvider>
+          <ConfigurationError message={configError ?? ''} />
+        </I18nProvider>
       </ThemeProvider>
     );
   }
 
   return (
     <ThemeProvider>
-      <ChatApplication />
+      <I18nProvider>
+        <ChatApplication />
+      </I18nProvider>
     </ThemeProvider>
   );
 }

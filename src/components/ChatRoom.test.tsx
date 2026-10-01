@@ -136,7 +136,9 @@ describe('ChatRoom', () => {
     const input = screen.getByLabelText('Message');
 
     await user.type(input, '  Welcome back  ');
-    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+    });
 
     await waitFor(() => expect(mockSendMessage).toHaveBeenCalledTimes(1));
     expect(mockSendMessage).toHaveBeenCalledWith(currentUser, 'Welcome back', null);
@@ -182,7 +184,10 @@ describe('ChatRoom', () => {
       expect(screen.getByText('Replying to Sara')).toBeInTheDocument();
 
       await user.type(screen.getByLabelText('Message'), 'An answer');
-      await user.click(screen.getByRole('button', { name: 'Send message' }));
+      // sendMessage resolves asynchronously and clears the draft afterwards.
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Send message' }));
+      });
 
       await waitFor(() => expect(mockSendMessage).toHaveBeenCalledTimes(1));
       expect(mockSendMessage).toHaveBeenCalledWith(currentUser, 'An answer', {
@@ -216,8 +221,8 @@ describe('ChatRoom', () => {
       });
 
       render(<ChatRoom user={currentUser} />);
-      await user.click(screen.getByRole('button', { name: 'Search messages' }));
-      await user.type(screen.getByLabelText('Search messages'), 'hello');
+      await user.click(screen.getByRole('button', { name: 'Search' }));
+      await user.type(screen.getByTestId('chat-search-input'), 'hello');
 
       expect(screen.getByText('Hello world')).toBeInTheDocument();
       expect(screen.queryByText('Second post')).not.toBeInTheDocument();
@@ -229,8 +234,8 @@ describe('ChatRoom', () => {
       stubMessages({ messages: [makeMessage('1', 'Hello world', 'other-user')] });
 
       render(<ChatRoom user={currentUser} />);
-      await user.click(screen.getByRole('button', { name: 'Search messages' }));
-      await user.type(screen.getByLabelText('Search messages'), 'zzzz');
+      await user.click(screen.getByRole('button', { name: 'Search' }));
+      await user.type(screen.getByTestId('chat-search-input'), 'zzzz');
 
       expect(screen.getByText('No matches')).toBeInTheDocument();
 
@@ -261,7 +266,11 @@ describe('ChatRoom', () => {
 
       render(<ChatRoom user={currentUser} />);
       await user.click(screen.getByRole('button', { name: 'Add a reaction' }));
-      await user.click(screen.getByRole('button', { name: 'React with 🔥' }));
+      // The rejected promise resolves the row error on a later microtask, so the
+      // click has to finish inside act() or React logs an update-outside-act warning.
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'React with 🔥' }));
+      });
 
       expect(await screen.findByRole('alert')).toHaveTextContent('write-denied');
     });
@@ -295,7 +304,9 @@ describe('ChatRoom', () => {
       expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       expect(mockDeleteMessage).not.toHaveBeenCalled();
 
-      await user.click(screen.getByRole('button', { name: 'Delete' }));
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Delete' }));
+      });
       await waitFor(() => expect(mockDeleteMessage).toHaveBeenCalledWith('2'));
     });
 
